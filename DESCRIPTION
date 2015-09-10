@@ -7,3 +7,4 @@ Author:  Jonathan Lisic
 Maintainer: Jonathan Lisic <jonathan.lisic@nass.usda.gov>
 Description:  This is a computationally efficient mean shift implementation providing both k-d tree, and merge-tree implementations. 
 License: BSD 2-Clause License 
+Depends: raster
