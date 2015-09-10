@@ -1,0 +1,5 @@
+export(meanShift)
+export(sampleClassify)
+
+useDynLib(meanShiftR)
+

@@ -1,0 +1,111 @@
+\title{MeanShiftR}
+\author{Jonathan Lisic}
+
+
+\documentclass[10pt,oneside]{article}
+
+
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amsthm}
+\usepackage{thmtools}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{cite}
+\usepackage[authoryear]{natbib}
+\usepackage{fancyref}
+\usepackage{url}
+\usepackage{algorithm}
+\usepackage{algorithmic}
+\usepackage[margin=.8in]{geometry}
+\usepackage[section]{placeins}
+\usepackage[titletoc]{appendix}
+\setcounter{secnumdepth}{5}
+
+\usepackage{hyperref}
+\hypersetup{pdftex,colorlinks=true,allcolors=blue}
+\usepackage{hypcap}
+
+
+\begin{document}
+
+\maketitle
+
+\section{Normal Newton Shift}
+
+For Gaussian kernels there is a simple relationship between Newton's Method and mean shift iterations, namely for element $k$,
+\begin{equation} 
+  v_k^{(i+1)} = v_k^{(i)} - \frac{ 
+    \sum_{j=1}^{N_R } (v_k^{(i)} - x_k) \phi \left( 
+    \left( v^{(i)} - x_j\right)^T H^{-2} \left( v^{(i)} - x_j\right)
+    \right)
+  } {
+    \sum_{j=1}^{N_R } \left( 1 - \left( h_k^{-1}(v_k^{(i)} - x_k) \right)^2 \right) \phi \left( 
+    \left( v^{(i)} - x_j\right)^T H^{-2} \left( v^{(i)} - x_j\right) 
+    \right)
+  } 
+\end{equation}
+can be rewritten as 
+\begin{equation} 
+  v_k^{(i+1)} = v_k^{(i)} - \frac{ 
+    \sum_{j=1}^{N_R } (v_k^{(i)} - x_k) \phi \left( 
+    \left( v^{(i)} - x_j\right)^T H^{-2} \left( v^{(i)} - x_j\right) 
+    \right)
+  } {
+    \sum_{j=1}^{N_R } \left( 1 - \alpha^{(i)} 
+    \left( (v_k^{(i)} - x_k) \right)^2 \right) 
+    \phi \left( \left( v^{(i)} - x_j\right)^T H^{-2} \left( v^{(i)} - x_j\right) \right)
+  } 
+\end{equation} 
+for $\alpha^{(i)} =1$.
+Setting $\alpha^{(i)}=0$  will produce the mean shift iterator.
+This relationship is missing in previous comparisons of mean shift and Newton's algorithm in \cite{chiu2008dual}, \cite{fashing2005mean} and \cite{yang2003mean}, and 
+ will be referred to as NNS (Normal Newton Shift).
+ 
+In application the choice of $\alpha$-sequence $\left\{\alpha_i\right\}_i^{\infty}$ should allow for convergence to the local mode for all values in the support, while providing for accelerated convergence near the mode. 
+Furthermore the iterator for choice of $\alpha$-sequence should be bijective over the support, this allows for a ``memoryless'' mapping from $X \to X$ independent of the iteration index.
+For simplicity only constant valued $\alpha$-sequences, will be considered in this dissertation.
+This last requirement both significantly simplifies the convergence proof 
+
+\section{Dual Tree Merge-Path Algorithm}
+\label{para:DualTreeMergePath}
+
+Unlike the dual tree mean shift implementation of \cite{wang2007fast} based on the more general \cite{gray2001} where a reference tree and a query tree are used to perform high-dimension binning for kernel density estimates.  
+The dual-tree approach presented here instead develops a mapping between $\mathbb{R}^d \to \mathbb{R}^d$ by exploiting the fact that means shift mapping is independent of the current iteration, and the observation that on approach to the mode the mean shift iterations follow similar paths.  
+The approach is rather simple, and the algorithm is outlined in \ref{ALGORITHM:MERGEPATH}.  
+The general ideas is to merge sequences that are sufficiently close to each other, where the distance between sequences at iteration $m$ is defined by
+\begin{equation}
+  d( x_m, y_m) = \text{min} \left\{ d(x_i, y_j): i \in \{1,\cdots,m\}, j \in \{1, \cdots, m\}  \right\}
+\end{equation}
+for sequences $x_m = \{x_i\}_{i=1}^m$ and $y_m = \{y_i\}_{i=1}^m$.
+If sampling is used, the final $T_Q$ tree may be used to classify the non-sampled units through nearest neighbor interpolation.
+
+
+In the algorithm below the query and reference points, Q and R are within an array. 
+\begin{algorithm}[H]
+  \label{ALGORITHM:MERGEPATH}
+\begin{algorithmic}
+  \STATE $T_Q \gets \text{tree}(Q) $ \COMMENT{Build k-d tree from Q}
+  \STATE $T_R \gets \text{tree}(R) $ \COMMENT{Build k-d tree from R}
+\STATE $Q^{(0)} \gets Q$
+\WHILE{$i \le m$}
+  \STATE $Q_{\text{KNN}} \gets \text{query}(T_R, Q^{(i-1)},k)$ \COMMENT{Get k-nearest neighbors.} 
+  \STATE $Q^{(i)} \gets \hat{f}(Q^{(i-1)},Q_{\text{KNN}})$ \COMMENT{Perform NNS.}
+  \STATE $Q_{\text{1NN}} \gets \text{query}(T_Q, Q^{(i)},1)$ \COMMENT{Get one nearest neighbor.}
+  \WHILE{$j \le \text{length}(Q_\text{1NN})$}
+    \STATE $q^* \gets Q_{\text{1NN}}[j]$
+    \IF{ $\left( ||q - q^*|| < \epsilon \right) \text{and}\left( \hat{f}(q) < \hat{f}(q^*) \right)$}
+      \STATE $Q_{\text{MERGE}} \gets Q_{\text{MERGE}} \cup \{q\}$
+    \ENDIF
+    \STATE $j = j + 1$
+  \ENDWHILE
+  \STATE $Q^{(i)} \gets Q^{(i)} \ Q_{\text{MERGE}}$
+  \STATE $T_Q \gets \text{tree}\left( \cup_{j=1}^i Q^{(i)} \right)$ 
+  \STATE $i = i +1$
+\ENDWHILE
+%\caption{Dual Tree Merge-Path Algorithm}
+\end{algorithmic}
+\end{algorithm}
+
+
+\end{document}

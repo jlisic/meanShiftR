@@ -1,0 +1,9 @@
+Package: meanShiftR
+Type: Package
+Title: A Computationally Efficient Mean Shift Implementation 
+Version: 1.0
+Date: 2015-09-09
+Author:  Jonathan Lisic 
+Maintainer: Jonathan Lisic <jonathan.lisic@nass.usda.gov>
+Description:  This is a computationally efficient mean shift implementation providing both k-d tree, and merge-tree implementations. 
+License: BSD 2-Clause License 

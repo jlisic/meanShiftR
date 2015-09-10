@@ -1,0 +1,7 @@
+.git
+.swo
+.swp
+src/.so
+src/.o
+.gitignore
+README.md
