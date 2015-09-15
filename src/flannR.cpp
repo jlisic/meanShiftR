@@ -527,11 +527,11 @@ void R_meanShiftNN(
   size_t yRow = xRow; // number of rows for the update matrix for the QueryTree 
 
 
-  size_t currentTreeIndexLength = 10* trainRow + 1;  // current max number of elements in the variable size array, treeIndex
+  size_t currentTreeIndexLength = 10* xRow + 1;  // current max number of elements in the variable size array, treeIndex
   size_t * treeIndex = (size_t *) calloc( currentTreeIndexLength, sizeof( size_t) ); // variable size array used to map elements in queryTree to x
   size_t currentTreeIndexMax = trainRow;   // current number of elements of queryTree
   
-  size_t currentZIndexLength = 10* trainRow + 1;  // current max number of elements in the variable size matrix, treeIndex
+  size_t currentZIndexLength = 10* xRow + 1;  // current max number of elements in the variable size matrix, treeIndex
   double * z = (double *) calloc( currentZIndexLength * xCol, sizeof( double) ); // variable size matrix used to map elements in queryTree to x
   size_t zRow = trainRow;   // current number of elements of queryTree
 
@@ -580,14 +580,14 @@ void R_meanShiftNN(
   if( debug == 1) weights = (double *) calloc( nNeighbors * xRow, sizeof( double ) );  // create weight matrix for debugging 
 
   double dist;
-  FILE * currentFile;
-  FILE * queryFile;
-  FILE * query2File;
-  FILE * query3File;
-  currentFile = fopen("query.txt","w");
-  queryFile = fopen("queryTree.txt","w");
-  query2File = fopen("query2Tree.txt","w");
-  query3File = fopen("query3Tree.txt","w");
+  //FILE * currentFile;
+  //FILE * queryFile;
+  //FILE * query2File;
+  //FILE * query3File;
+  //currentFile = fopen("query.txt","w");
+  //queryFile = fopen("queryTree.txt","w");
+  //query2File = fopen("query2Tree.txt","w");
+  //query3File = fopen("query3Tree.txt","w");
 
 
   /******************* CREATE INDEX *********************/ 
@@ -978,10 +978,10 @@ void R_meanShiftNN(
 
 
   // free everything
-  fclose(currentFile);
-  fclose(queryFile);
-  fclose(query2File);
-  fclose(query3File);
+  //fclose(currentFile);
+  //fclose(queryFile);
+  //fclose(query2File);
+  //fclose(query3File);
 
   free(z);
   free(weights);

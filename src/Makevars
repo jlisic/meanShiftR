@@ -1,2 +1,2 @@
-PKG_CPPFLAGS=-I/usr/local/Cellar/flann/1.8.4/include 
-PKG_LIBS=-L/usr/local/Cellar/flann/1.8.4/lib -lflann_cpp 
+PKG_CPPFLAGS=  $(SHLIB_OPENMP_CXXFLAGS)
+PKG_LIBS=-lflann_cpp   $(SHLIB_OPENMP_CXXFLAGS)

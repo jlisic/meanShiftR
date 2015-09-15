@@ -1,10 +1,11 @@
+library(meanShiftR)
 
 # example data
   x1 <- matrix( rnorm( 10 ),ncol=2)
   x2 <- matrix( rnorm( 10 ),ncol=2) + 2 
   x <- rbind( x1, x2 ) 
 
-  nn <- getNN(
+  nn <- meanShift(
     x, 
     x, 
     nNeighbors=3,
