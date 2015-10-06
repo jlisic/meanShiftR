@@ -2,6 +2,7 @@
 #include <flann/io/hdf5.h>
 #include <stdio.h> 
 #include <stdlib.h>
+#include <vector>
 
 #include "R.h"
 #include "Rinternals.h"
@@ -10,6 +11,57 @@
 
 #include "Rmath.h"
 #include "omp.h"
+
+
+
+
+
+/**************** print matrix ******************************************/
+
+/* function that prints out a matrix of type integer */
+void printMatrixFullInt(int * X , size_t row, size_t col ) {
+  size_t i,j;
+
+  for(i = 0; i < row; i++) {
+    Rprintf("%d:\t",(int) i);
+    for(j = 0; j < col; j++) {
+      Rprintf("%d\t",X[i*col + j]);
+    }
+    Rprintf("\n");
+  }
+
+}
+
+
+/* function that prints out a matrix of type double */
+void printMatrixFullDbl(double * X , size_t row, size_t col ) {
+  size_t i,j;
+
+  for(i = 0; i < row; i++) {
+    Rprintf("%d:\t",(int) i);
+    for(j = 0; j < col; j++) {
+      Rprintf("%0.4f\t",X[i*col + j]);
+    }
+    Rprintf("\n");
+  }
+
+}
+
+
+/* function that prints out a matrix of type integer */
+void printMatrixFullSize_t(size_t * X , size_t row, size_t col ) {
+  size_t i,j;
+
+  for(i = 0; i < row; i++) {
+    Rprintf("%d:\t",(int) i);
+    for(j = 0; j < col; j++) {
+      Rprintf("%d\t",(int) X[i*col + j]);
+    }
+    Rprintf("\n");
+  }
+
+}
+
 
 
 /****************************** ADT stuff to fix issues with the compiler e.g. headers not working on all platforms *****/
@@ -257,7 +309,7 @@ size_t *  updateVariableArray( size_t * x, size_t xRow , size_t  * xLength) {
 
   // check if we need to resize
   if( xRow >= *xLength) {
-    Rprintf("resizing\n");
+    //Rprintf("resizing\n");
     y = (size_t *) calloc( xRow + *xLength/2 + 1, sizeof( size_t) );
     for(j = 0; j < *xLength; j++) y[j] = x[j]; 
 
@@ -285,8 +337,8 @@ double *  updateVariableMatrix( double * x, size_t xRow, size_t xCol, size_t  * 
   size_t j;
 
   // check if we need to resize
-  if( xRow >= *xLength) {
-    Rprintf("resizing\n");
+  if( xRow  >= *xLength) {
+    //Rprintf("resizing\n");
     y = (double *) calloc( (xRow + *xLength/2 + 1)*xCol , sizeof(double) );
     for(j = 0; j < *xLength * xCol; j++) y[j] = x[j]; 
 
@@ -304,6 +356,151 @@ double *  updateVariableMatrix( double * x, size_t xRow, size_t xCol, size_t  * 
 
 
 
+/***********************************************************************************************/
+/* function for updating assignment, y, and x2y                                                */
+/***********************************************************************************************/
+    /* let's define the input and output here */
+    /* INPUT */
+    /* 
+     * assignment     -- current group assignment        length xLength    size_t * 
+     * queueArray     -- an array of queues              length xLength    queuePtr
+     * xRow           -- length of x array               1                 size_t
+     * xRow           -- length of y array               1                 size_t
+     * x2y            -- mapping from x 2 y              length xLength    size_t *
+     * x2yNew         -- mapping from x 2 updated y      length xLength    size_t *
+     * neighborsQuery -- set of neighbors from z         length yLength    int *
+     * distancesQuery -- set of distances from 1nn query length yLength    double *
+     * prob           -- current kde value for a cluster length yLength    double *
+     * mergeTreeIndex -- index for merge tree            length zLength?   int *
+     * mergeTreeLength
+     * mergeTreeSize
+     * y              -- matrix of group locations       length yRow by xCol double *
+     * z              -- matrix of historic group locations       length zRow by xCol double *
+     */ 
+     /* OUTPUT, destructive changes */
+    /*
+     * assignment     -- current group assignment        length xLength    size_t * 
+     * x2yNew         -- mapping from x 2 updated y      length xLength    size_t *
+     * y              -- matrix of group locations       length yRow by xCol double *
+     * z              -- matrix of historic group locations       length zRow by xCol double *
+     */
+
+void mergePath( 
+     size_t * assignment, 
+     double ** zPtr,
+     double * y,
+     queuePtr * queueArray,
+     size_t ** x2yPtr,
+     size_t ** x2yNewPtr,
+     size_t ** mergeTreeIndexPtr, 
+     size_t * mergeTreeLengthPtr,
+     size_t * mergeTreeSizePtr,
+     size_t * zRowPtr,
+     size_t * yRowPtr,
+     size_t * zSizePtr,
+
+     const double * epsilon,
+     const size_t xRow,
+     const size_t xCol,
+     const int * neighborsQuery,
+     const double * distancesQuery,
+     const double * prob
+    ) {
+
+  size_t * x2y = *x2yPtr;
+  size_t * x2yNew = *x2yNewPtr;
+  size_t j, k;
+  size_t j_y;        //variable to get the row number in yMatrix
+  size_t j_neighbor;        // neighbor value in relation to x from queryTree
+  size_t j_neighbor_y;     //j_neighbor in relation to y 
+
+  double * z = *zPtr;
+  size_t * mergeTreeIndex = *mergeTreeIndexPtr;
+
+    *yRowPtr = 0;
+    // find neighbors with higher prob within epsilon 
+    for( j =0; j < xRow; j++) {
+      if( assignment[j] == j ) {  // only run for points that haven't been merged
+
+        if( queueArray[j] == NULL ) {
+          Rprintf("\n\n############ j=%d Inconsistent State! ###############\n\n", (int) j);
+          queueArrayPrint( queueArray, xRow); 
+          return;
+        }
+
+        
+        /* perform adjustments based on j */
+        j_y = x2y[j];            // get the row number for j in Y
+        j_neighbor = assignment[ mergeTreeIndex[ neighborsQuery[j_y] ] ];    // value for j's neighbor in x domain
+        j_neighbor_y = x2y[j_neighbor]; // value for j's neighbor in Y
+        
+        // check if both sufficiently close and higher probability 
+        if( 
+            (assignment[j_neighbor] != j ) &         // check to see if the nearest neighbor's assignment isn't already j
+            ( distancesQuery[j_y] < *epsilon ) & // check to see if distance threshold is met 
+            ( prob[j_y] < prob[ j_neighbor_y ] )   // check to see if there is an increas in probability
+          ) {
+
+          // merge together  
+          queueArrayCopyTogether( queueArray, j, j_neighbor, assignment);
+          
+        } else {
+          /* check if we need to resize the vector */
+
+          mergeTreeIndex = updateVariableArray( mergeTreeIndex, *mergeTreeLengthPtr + *yRowPtr, mergeTreeSizePtr );
+          mergeTreeIndex[ *mergeTreeLengthPtr + *yRowPtr ] = j;
+          
+
+          z = updateVariableMatrix( z, *zRowPtr + *yRowPtr, xCol, zSizePtr );
+
+          /* to ensure we only add unmerged points into the tree */ 
+          /* note it's safe to write over y at this point */
+          //Rprintf("  %d:\t", (int) (*zRowPtr + *yRowPtr) );
+          for( k=0; k < xCol; k++) {
+          //  Rprintf("%f ", y[ x2y[j]*xCol + k]);
+            y[(*yRowPtr)*xCol +k] = y[ x2y[j] * xCol+k];
+            z[(*zRowPtr + *yRowPtr)*xCol +k] = y[ x2y[j] * xCol+k];
+          //  Rprintf("(%f) ", z[(*zRowPtr + *yRowPtr)*xCol +k] ); 
+          }
+          //Rprintf("\n");
+
+          /* we can't write over x2y now since we will use it for later requets */
+          /* so x2yNew is kept to refer to the updated y */ 
+          x2yNew[j] = *yRowPtr;
+
+          if( *yRowPtr > j ) {
+            Rprintf("yRow is greater than j\n");
+            return; 
+          }
+          if( *yRowPtr > x2y[j] ) {
+            Rprintf("x2y[j] is greater than j\n");
+            return; 
+          }
+
+          // increment 
+          *yRowPtr = *yRowPtr + 1;
+
+        }
+      }
+    }
+
+    //update number of objects in query Index
+    *mergeTreeLengthPtr = *mergeTreeLengthPtr + *yRowPtr;
+    *zRowPtr = *zRowPtr + *yRowPtr;
+
+    //update x2y
+    *x2yPtr = x2yNew;
+    *x2yNewPtr = x2y;
+ 
+    /* pass pointers back */ 
+    *zPtr = z;
+    *mergeTreeIndexPtr = mergeTreeIndex;
+    
+    //Rprintf("z - postMerge1:\n"); 
+    //printMatrixFullDbl(z,*zRowPtr,xCol);
+
+    return;
+}
 
 
 
@@ -384,10 +581,11 @@ void normalKernelNewton(
       for( d = 0; d < queryCol; d++)  { 
         
         // save a copy of the point 
-        z[d] = ( query[i * queryCol + d] - train[currentNeighbor * queryCol + d] );
+        z[d] = ( query[i * queryCol + d] - train[currentNeighbor * queryCol + d] )/bandwidth[d];
         
         // double dnorm( double x, double mu, double sigma, int give_log)   
-        w *=  dnorm( z[d] , 0, 1 , 0 );
+        //w *=  dnorm( z[d] , 0, 1 , 0 );
+        w *=  0.5 * exp( - 0.5 * z[d]*z[d] );
 
       }
 
@@ -397,15 +595,21 @@ void normalKernelNewton(
       /* aggregate over all variables */
       for( d = 0; d < queryCol; d++) {
         prob[i] += w;
-        numerator[d] +=  z[d] * w ;
-        denominator[d] += ( 1 - alpha * z[d] * z[d]) * w ;
+        numerator[d] +=  z[d] * bandwidth[d] * w ;
+        if( alpha > 0 ) {
+          denominator[d] += ( 1 - alpha * z[d] * z[d]) * w ;
+        } else { 
+          denominator[d] += w;
+        }
       }
 
-      if( k > 0 ) {
+/*
+    if( k > 0 ) {
         if( (w > 0) & (w / w0 < 0.0001 ) ) break;  
       } else { 
         w0 = w;
       }
+*/
      
       
       denominatorMS += w; 
@@ -428,10 +632,10 @@ void normalKernelNewton(
 
 
 /* 
- * x points to find neighbors for 
- * y pool of neighbors 
+ * y points to find neighbors for 
+ * z pool of neighbors 
  */
-void getNeighbors( 
+void getOneNeighbor( 
     double * y, 
     double * z, 
     size_t yRow, 
@@ -457,21 +661,34 @@ void getNeighbors(
   flann::Index< flann::L2<double> > queryIndex( zMatrix, flann::KDTreeIndexParams( 4 ) ); 
   queryIndex.buildIndex();
 
-  queryIndex.knnSearch(yMatrix, neighborsQueryMatrix, distancesQueryMatrix, 1, exactSearchParameters); 
+  queryIndex.knnSearch(
+      yMatrix, 
+      neighborsQueryMatrix, 
+      distancesQueryMatrix, 
+      1, 
+      exactSearchParameters
+      ); 
 
   return;
-}; 
+} 
 
 
 
 
+/*
+R side, x:
+ 1  5  9  x1
+ 2  6 10  x2
+ 3  7 11  x3
+ 4  8 12  x4
 
+x:
+x1 x2 x3 x4
+ 1  2  3  4
+ 5  6  7  8
+ 9 10 11 12
 
-
-
-
-
-
+*/
 
 // extern start for .C interface
 extern "C" {
@@ -480,15 +697,15 @@ extern "C" {
 /* mean shfit nearest neighbors */
 void R_meanShiftNN(
   double * x,                /* data to query for */
-  double * train, 
+  double * r,                /* reference data */
   int * neighbors,
   double * distances,
   double * prob,
-  int * neighborsQuery,
+  int * neighborsQuery,              /* assignment */
   double * distancesQuery,
   int * xRowPtr,                     /* number of rows of data to query */
-  int * trainRowPtr,                 /* number of rows of data to train on */
-  int * xColPtr,                     /* number of columns of data to form train */
+  int * rRowPtr,                     /* number of rows of data for kde */
+  int * xColPtr,                     /* number of columns of data to form r */
   int * nNeighborsPtr,               /* number of Neighbors */
   int * intSearchParameters,         /* integer parameters for search*/
   double * doubleSearchParameters,   /* double parameters for search */ 
@@ -504,40 +721,40 @@ void R_meanShiftNN(
   int * interpolateRowPtr,
   int * assignmentsDebug,
   double * weightsDebug,
-  int * neighborsDebug,              /* record all neighbors for each train record */
-  double * valuesDebug       
+  int * neighborsDebug,              /* record all neighbors for each r record */
+  double * valuesDebug,
+  double * clusterEpsilon            /* cut off for cluster distances */  
 
 ) {
 
   /* simplify the interface by dereferencing the pointers */
   size_t xRow =     (size_t) * xRowPtr; 
-  size_t trainRow = (size_t) * trainRowPtr; 
+  size_t rRow = (size_t) * rRowPtr; 
   size_t xCol =     (size_t) * xColPtr;
   size_t kernelMethod =   (size_t) * kernelMethodPtr;
   size_t nNeighbors = (size_t) * nNeighborsPtr;
   size_t interpolateRow = (size_t) * interpolateRowPtr;
 
   size_t debug = (size_t) assignmentsDebug[1];   // status of recording observations via debug
-  size_t inNeighbors;
 
   /* indexes */
-  int jAdjust;        // neighbor value in relation to x from queryTree
-  int jAdjustInY;     //jAdjust in relation to y 
-  size_t jInY;        //variable to get the row number in yMatrix
   size_t yRow = xRow; // number of rows for the update matrix for the QueryTree 
 
-
-  size_t currentTreeIndexLength = 10* xRow + 1;  // current max number of elements in the variable size array, treeIndex
-  size_t * treeIndex = (size_t *) calloc( currentTreeIndexLength, sizeof( size_t) ); // variable size array used to map elements in queryTree to x
-  size_t currentTreeIndexMax = trainRow;   // current number of elements of queryTree
+  /* calculate initial size for dynamic arrays */
+  size_t mergeTreeSize = 10 * xRow + 1;  // current max number of elements in the variable size array, treeIndex
+  size_t * mergeTreeIndex = (size_t *) calloc( mergeTreeSize, sizeof( size_t) ); // variable size array used to map elements in queryTree to x
+  size_t mergeTreeLength = xRow;   // current number of elements of queryTree
+ 
+  size_t zSize = 10 * xRow + 1;  // current max number of elements in the variable size matrix, treeIndex
+  double * z = (double *) calloc( zSize *  xCol, sizeof( double) ); // variable size matrix used to map elements in queryTree to x
+  size_t zRow = xRow;   // current number of elements of queryTree
   
-  size_t currentZIndexLength = 10* xRow + 1;  // current max number of elements in the variable size matrix, treeIndex
-  double * z = (double *) calloc( currentZIndexLength * xCol, sizeof( double) ); // variable size matrix used to map elements in queryTree to x
-  size_t zRow = trainRow;   // current number of elements of queryTree
+  /* create Matrix ADT for adding to second tree */
+  double * y = (double *) calloc( xRow * xCol, sizeof(double) ); 
 
   size_t i,j,k; /* index */
-
-  double * tmpPtr;
+  size_t j_neighbor;
+  size_t j_neighbor_y;
 
   /* for interpolation */
   double * interpolateDistance;
@@ -545,11 +762,7 @@ void R_meanShiftNN(
   /* fixes for R with OpenMP */
   R_CStackLimit=(uintptr_t)-1;
 
-  /* create Matrix ADT for adding to second tree */
-  double * y = (double *) calloc( xRow * xCol, sizeof(double) ); 
-  for( i = 0; i < xRow * xCol; i++) y[i] = x[i];
-  for( i = 0; i < trainRow * xCol; i++) z[i] = train[i];
-
+  /* create flann matricies */
   flann::Matrix<double> yMatrix; 
   flann::Matrix<double> distancesMatrix; 
   flann::Matrix<int> neighborsMatrix; 
@@ -558,18 +771,26 @@ void R_meanShiftNN(
   flann::Matrix<double> distancesInterpolateMatrix; 
   flann::Matrix<int> neighborsInterpolateMatrix; 
 
-  flann::Matrix<double> trainMatrix( train, trainRow, xCol ); 
+  flann::Matrix<double> rMatrix( r, rRow, xCol ); 
   
   /* index to determine if something has been assigned */
   size_t * assignment = (size_t * ) calloc( xRow, sizeof(size_t));
   size_t * x2y = (size_t * ) calloc( xRow, sizeof(size_t));
   size_t * x2yNew = (size_t * ) calloc( xRow, sizeof(size_t));
-  size_t * x2yTmp = NULL;
+
+  /* check min cluster distance */
+  queuePtr tmpPtr;
   
+  /* copy data over for y and x */
+  for( i = 0; i < xRow * xCol; i++) {
+    y[i] = x[i];
+    z[i] = x[i];
+  }
   /* for everything that needs an increasing initial value */
   for( i = 0; i < xRow; i++) assignment[i] = i, x2y[i] = i, x2yNew[i]=i;
-  for( i = 0; i < trainRow; i++) treeIndex[i]=i;
+  for( i = 0; i < rRow; i++) mergeTreeIndex[i]=i;
   queuePtr * queueArray = queueArrayCreate( assignment, xRow); 
+  queuePtr * queueArrayY = (queuePtr *) calloc( xRow, sizeof( queuePtr) ); 
      
   // ----- debugging variables  
   // offsets for debugging 
@@ -580,19 +801,14 @@ void R_meanShiftNN(
   if( debug == 1) weights = (double *) calloc( nNeighbors * xRow, sizeof( double ) );  // create weight matrix for debugging 
 
   double dist;
-  //FILE * currentFile;
-  //FILE * queryFile;
-  //FILE * query2File;
-  //FILE * query3File;
-  //currentFile = fopen("query.txt","w");
-  //queryFile = fopen("queryTree.txt","w");
-  //query2File = fopen("query2Tree.txt","w");
-  //query3File = fopen("query3Tree.txt","w");
 
+  // double epsilon since flann uses the unsquared difference
+  *epsilon = (*epsilon) * (*epsilon);
+  *clusterEpsilon = (*clusterEpsilon) * (*clusterEpsilon);
 
   /******************* CREATE INDEX *********************/ 
   /* if KDTreeIndex */ 
-  flann::Index< flann::L2<double> > index( trainMatrix, flann::KDTreeIndexParams( intAlgorithmParameters[0] ) ); 
+  flann::Index< flann::L2<double> > index( rMatrix, flann::KDTreeIndexParams( intAlgorithmParameters[0] ) ); 
 
   /* build the index */ 
   index.buildIndex();
@@ -607,6 +823,9 @@ void R_meanShiftNN(
   yMatrix = flann::Matrix<double>(y, yRow, xCol);
   neighborsMatrix = flann::Matrix<int>(neighbors, yRow, nNeighbors);
   distancesMatrix = flann::Matrix<double>(distances, yRow, nNeighbors);
+    
+//  Rprintf("x:\n"); 
+//  printMatrixFullDbl(x,xRow,xCol);
 
   /* perform searches */ 
   /* Implementation Notes
@@ -622,7 +841,7 @@ void R_meanShiftNN(
    *   prob
    * 
    * The following things stay the same
-   *   train
+   *   r
    *   xCol
    *   nNeighbors
    *   bandwidth
@@ -633,7 +852,7 @@ void R_meanShiftNN(
    *   x
    *
    * The following things grow in size
-   *   treeIndex
+   *   mergeTreeIndex
    *   queryIndex
    *
    */
@@ -641,7 +860,7 @@ void R_meanShiftNN(
 //Rprintf("Iteration: %d ----------------------------------------------------------- \n", (int) i);
    
 
-    /* look for points in the training set */
+    /* look for points in the ring set */
     //Rprintf("KNN Search: %d ----------------------------------------------------------- \n", (int) i);
     index.knnSearch(yMatrix, neighborsMatrix, distancesMatrix, nNeighbors, mpSearchParameters); 
  
@@ -653,7 +872,7 @@ void R_meanShiftNN(
     if( kernelMethod == 3) {
       normalKernelNewton(
         y,            /* query matrix */
-        train,        /* train matrix */
+        r,            /* reference matrix */
         neighbors,    /* neighbors matrix */
         prob,
         yRow,
@@ -664,33 +883,9 @@ void R_meanShiftNN(
         weights  // for debug
       );
     }
-    
-    
-    // start off with all elements merged 
-    
-    /***************** DEBUG *****************************/ 
-    /*
-    fprintf( currentFile, "PRESEARCH \n");
-    for( j =0; j < xRow; j++) {
-
-      jInY = x2y[assignment[j]];
-
-      fprintf(currentFile, "y: %d, %d, %d ", 
-           (int) i,
-           (int) j,
-           (int) jInY
-       ); 
-      for( k=0; k < xCol; k++) fprintf( currentFile, "%f,", y[jInY*xCol +k] );
-      fprintf( currentFile, "\n");
-    }
-    fprintf( currentFile, "\n");
-    */
-    /***************** DEBUG *****************************/ 
-
+  
     // query  querytree and find closest point 
-    getNeighbors(y, z, yRow, zRow, xCol, neighborsQuery, distancesQuery); 
-   
-
+    getOneNeighbor(y, z, yRow, zRow, xCol, neighborsQuery, distancesQuery); 
 
     /***************** DEBUG *****************************/ 
     // record record level changes for each iteration
@@ -702,187 +897,57 @@ void R_meanShiftNN(
       offsetCol = offset * xCol;
 
       // copy assignment back over for debug
-      //#pragma omp for private(k,jAdjustInY)
+      //#pragma omp for private(k,j_neighbor_y)
       for( j = 0; j < xRow; j++) {
 
         // handle assignment
         assignmentsDebug[ offset + j] = (int) assignment[j];
 
         // handle weights and neighbors 
-        jAdjustInY = x2y[assignment[j]];   // get mapping of current record to y
+        j_neighbor_y = x2y[assignment[j]];   // get mapping of current record to y
 
         for( k = 0; k < nNeighbors; k ++) {
-          neighborsDebug[ offsetNeighbors +  j*nNeighbors + k] = neighbors[ jAdjustInY * nNeighbors +k];  
-          weightsDebug[ offsetNeighbors +  j*nNeighbors + k]   = weights[ jAdjustInY * nNeighbors +k];  
+          neighborsDebug[ offsetNeighbors +  j*nNeighbors + k] = neighbors[ j_neighbor_y * nNeighbors +k];  
+          weightsDebug[ offsetNeighbors +  j*nNeighbors + k]   = weights[ j_neighbor_y * nNeighbors +k];  
         }
 
-        for( k = 0; k < xCol; k++ ) valuesDebug[ offsetCol +  j*xCol + k] = y[ jAdjustInY * xCol +k] * bandwidth[k];  
+        for( k = 0; k < xCol; k++ ) valuesDebug[ offsetCol +  j*xCol + k] = y[ j_neighbor_y * xCol +k];  
 
       }
     }
-    
     /***************** DEBUG *****************************/ 
 
-    /***************** DEBUG *****************************/ 
-    /*
-    // log 
-    for( j =0; j < currentTreeIndexMax; j++) {
 
-      if( neighborsQuery[jInY] >=  0 ) {
-      tmpPtr = queryIndex.getPoint( j );
-      fprintf(queryFile, "%d, %d, %d ", 
-           (int) i,
-           (int) j,
-           (int) treeIndex[j] 
-       ); 
-      for( k=0; k < xCol; k++) fprintf( queryFile, "%f,", tmpPtr[k] );
-      fprintf( queryFile, "\n");
-      } else {
-        fprintf(queryFile, "%d \n", neighborsQuery[jInY]);
-      }
-
+     /* perform merge path */
+     mergePath( 
+       assignment, 
+       &z,
+       y,
+       queueArray,
+       &x2y,
+       &x2yNew,
+       &mergeTreeIndex,
+       &mergeTreeLength,
+       &mergeTreeSize,
+       &zRow,
+       &yRow,
+       &zSize,
+       epsilon,
+       xRow,
+       xCol,
+       neighborsQuery,
+       distancesQuery,
+       prob
+    ); 
+/* 
+    if( i >= 9 ) {
+      printMatrixFullSize_t(assignment, xRow , 1 );
+      printMatrixFullDbl(y, yRow , xCol );
     }
-    fprintf(queryFile, "\n");
-    */
-    /***************** DEBUG *****************************/ 
-
-    /***************** DEBUG *****************************/ 
-    // log
-    /*
-    for( j =0; j < xRow; j++) {
-
-      jInY = x2y[assignment[j]];
-
-      fprintf(currentFile, "y: %d, %d, %d ", 
-           (int) i,
-           (int) j,
-           (int) jInY
-       ); 
-      for( k=0; k < xCol; k++) fprintf( currentFile, "%f,", y[jInY*xCol +k] );
-      fprintf( currentFile, "\n");
-
-      if( neighborsQuery[jInY] >=  0 ) {
-      tmpPtr = queryIndex.getPoint( neighborsQuery[jInY] );
-      fprintf(currentFile, "z: %d, %d, %d ", 
-           (int) i,
-           (int) j,
-           (int) jInY 
-       ); 
-      for( k=0; k < xCol; k++) fprintf( currentFile, "%f,", tmpPtr[k] );
-      fprintf( currentFile, "\n");
-      } else {
-        fprintf(currentFile, "z: %d \n", neighborsQuery[jInY]);
-      }
-
-    }
-    fprintf(currentFile, "\n");
-    */
-    /***************** DEBUG *****************************/ 
-    /*
-    Rprintf("X2Y:\n");
-    for( j =0; j < xRow; j++) Rprintf("%d ",j);
-    Rprintf("\n");
-    for( j =0; j < xRow; j++) Rprintf("%d ", x2y[assignment[j]]);
-    Rprintf("\n");
-   
-    Rprintf("Assignment:\n");
-    for( j =0; j < xRow; j++) Rprintf("%d ",j);
-    Rprintf("\n");
-    for( j =0; j < xRow; j++) Rprintf("%d ", assignment[j]);
-    Rprintf("\n");
+*/
     
-    Rprintf("Tree Index:\n");
-    for( j =0; j < currentTreeIndexMax; j++) Rprintf("%d: %d\n", (int) j, (int) treeIndex[j]);
-    Rprintf("\n");
-    
-    Rprintf("NeighborsQuery:\n");
-    for( j =0; j < yRow; j++) Rprintf("%d: %d\n", (int) j, (int) neighborsQuery[j]);
-    Rprintf("\n");
-    */
-    
-    yRow = 0;
-    // find neighbors with higher prob within epsilon 
-    for( j =0; j < xRow; j++) {
-      if( assignment[j] == j ) {  // only run for points that haven't been merged
-
-        if( queueArray[j] == NULL ) {
-          Rprintf("\n\n############ j=%d Inconsistent State! ###############\n\n", (int) j);
-          queueArrayPrint( queueArray, xRow); 
-          return;
-        }
-
-        /* perform adjustments based on j */
-        jInY = x2y[j];            // get the row number for j in Y
-        jAdjust = assignment[ treeIndex[ neighborsQuery[jInY] ] ];    // value for j's neighbor
-        jAdjustInY = x2y[jAdjust]; // value for j's neighbor in Y
-
-
-// DEBUG 
-//Rprintf("%d: j=%d x2y=%d neighbor=%d migrateTo= %d (%f %f)", (int) i, (int) j, (int) jInY, (int) neighborsQuery[jInY], (int) treeIndex[neighborsQuery[jInY]], distancesQuery[jInY], *epsilon);
-//Rprintf("[%f, %f]\n", prob[j], prob[ jAdjustInY ] );
-// DEBUG 
-
-        
-        // check if both sufficiently close and higher probability 
-        if( 
-            (assignment[jAdjust] != j ) &         // check to see if the nearest neighbor's assignment isn't already j
-            ( distancesQuery[jInY] < *epsilon ) & // check to see if distance threshold is met 
-            ( prob[jInY] < prob[ jAdjustInY ] )   // check to see if there is an increas in probability
-          ) {
-
-          // merge together  
-//Rprintf("\tj = %d, jAdjust = %d \n", (int) j, (int) jAdjust);
-          queueArrayCopyTogether( queueArray, j, jAdjust, assignment);
-          
-        } else {
-          /* check if we need to resize the vector */
-
-//Rprintf("currentTreeIndexLength = %d, add = %d, currentTreeIndexMax = %d\n", currentTreeIndexMax, currentTreeIndexMax + yRow, currentTreeIndexLength);
-          treeIndex = updateVariableArray( treeIndex, currentTreeIndexMax + yRow, &currentTreeIndexLength );
-//Rprintf("currentTreeIndexLength = %d, add = %d, currentTreeIndexMax = %d\n", currentTreeIndexMax, currentTreeIndexMax + yRow, currentTreeIndexLength);
-          treeIndex[ currentTreeIndexMax + yRow ] = j;
-
-//Rprintf("zRow = %d, add = %d, currentZIndexMax = %d\n", zRow, zRow + yRow, currentZIndexLength);
-          z = updateVariableMatrix( z, zRow + yRow, xCol, &currentZIndexLength );
-//Rprintf("zRow = %d, add = %d, currentZIndexMax = %d\n", zRow, zRow + yRow, currentZIndexLength);
-
-          /* to ensure we only add unmerged points into the tree */ 
-          for( k=0; k < xCol; k++) {
-            y[yRow*xCol +k] = y[ x2y[j] * xCol+k];
-            z[(zRow + yRow)*xCol +k] = y[ x2y[j] * xCol+k];
-          }
-          x2yNew[j] = yRow;
-
-          if( yRow > j ) {
-            Rprintf("yRow is greater than j\n");
-            return; 
-          }
-          if( yRow > x2y[j] ) {
-            Rprintf("x2y[j] is greater than j\n");
-            return; 
-          }
-
-          // increment 
-          yRow++;
-
-        }
-      }
-    }
-    //Rprintf("Iteration: %d Decrease = %04.2f\r", (int) i + 1, 1 - (float) yRow / (float) xRow );
     Rprintf("Iteration: %d Decrease = %04.2f\n", (int) i + 1, 1 - (float) yRow / (float) xRow );
-
-    //update number of objects in query Index
-    currentTreeIndexMax += yRow;
-    zRow += yRow;
-
-    //update x2y
-    x2yTmp = x2y;
-    x2y = x2yNew;
-    x2yNew = x2yTmp;
-    x2yTmp = NULL; 
           
-//queueArrayPrint( queueArray, xRow); 
-      
     if( i < *iterations - 1 ) { // don't do a final query
 
       // update matricies
@@ -890,47 +955,46 @@ void R_meanShiftNN(
       neighborsMatrix = flann::Matrix<int>(neighbors, yRow, nNeighbors);
       distancesMatrix = flann::Matrix<double>(distances, yRow, nNeighbors);
     
-      
-    /***************** DEBUG *****************************/ 
-    /*
-      for( j =0; j < yRow; j++) {
-        fprintf(query2File, "y: %d, %d, ", 
-             (int) i,
-             (int) j
-         ); 
-        for( k=0; k < xCol; k++) fprintf( query2File, "%f,", y[j*xCol +k] );
-        fprintf( query2File, "\n");
-      }
-      fprintf( query2File, "\n");
-    */
-    /***************** DEBUG *****************************/ 
- 
-
-    /***************** DEBUG *****************************/ 
-    // log 
-    /*
-    for( j =0; j < currentTreeIndexMax; j++) {
-
-      tmpPtr = queryIndex.getPoint( j );
-      fprintf(query3File, "%d, %d, %d ", 
-           (int) i,
-           (int) j,
-           (int) treeIndex[j] 
-       ); 
-      for( k=0; k < xCol; k++) fprintf( query3File, "%f,", tmpPtr[k] );
-      fprintf( query3File, "\n");
-
     }
-    fprintf(query3File, "\n");
-    */
-    /***************** DEBUG *****************************/ 
-
-
-    }
-  
 
   }  // end iteraations
+
+  // figure out what assignments we may need to change
+  for( i=0; i < xRow; i++) {
+    if( queueArray[i] != NULL) {
+      k= x2y[i];
+      queueArrayY[k] = queueArray[i]; 
+    } 
+  }
+
+
+
+  // do a final merge
+  for( i=0; i < yRow; i++) {
+    for( j=i+1; j < yRow; j++) {
+
+      // get distance
+      dist = 0;
+      for( k=0; k < xCol; k++) dist += (y[i*xCol + k] - y[j*xCol+k])* (y[i*xCol + k] - y[j*xCol+k]);
+      
+      // check distance
+      if (*clusterEpsilon >= dist) {
+
+        k = assignment[ queueArrayY[i]->item ];
+        tmpPtr = queueArrayY[j]; 
+
+        // update assignment
+        while( tmpPtr != NULL ){        
+          assignment[tmpPtr->item] = k;
+          tmpPtr = tmpPtr->tail;
+        }
+
+      }
+    }
+  }  
   
+ 
+
   // interpolate
   if( interpolateIndex[0] != -1) { 
 
@@ -940,21 +1004,25 @@ void R_meanShiftNN(
     neighborsInterpolateMatrix = flann::Matrix<int>(interpolateIndex, interpolateRow, 1);
     distancesInterpolateMatrix = flann::Matrix<double>(interpolateDistance, yRow, 1);
 
-    index.knnSearch(interpolateMatrix, neighborsInterpolateMatrix, distancesInterpolateMatrix, 1, mpSearchParameters); 
+    index.knnSearch(
+        interpolateMatrix, 
+        neighborsInterpolateMatrix, 
+        distancesInterpolateMatrix, 
+        1, 
+        mpSearchParameters
+        ); 
   
     // copy assignment back over for interpolate
-    #pragma omp for private(k,jAdjust,jAdjustInY)
+    #pragma omp for private(k,j_neighbor,j_neighbor_y)
     for( i = 0; i < interpolateRow; i++) {
-      //jAdjust    = treeIndex[ interpolateIndex[i] ];  // get neighbor
-      jAdjust    = interpolateIndex[i];  // get neighbor
-      jAdjustInY = x2y[ assignment[jAdjust] ]; // get neighbor in Y
+      //j_neighbor    = treeIndex[ interpolateIndex[i] ];  // get neighbor
+      j_neighbor    = interpolateIndex[i];  // get neighbor
+      j_neighbor_y = x2y[ assignment[j_neighbor] ]; // get neighbor in Y
     
-//      if( i < 10) Rprintf("%d: jAdjustInY %d [%d] jAdjustInY %d [%d]\n" , (int) i, (int) jAdjust, (int) xRow, (int) jAdjustInY, (int) yRow);
-
-      interpolateIndex[i] = assignment[jAdjust];
+      interpolateIndex[i] = assignment[j_neighbor];
 
       // copy back location
-      for( k = 0; k < xCol; k ++) interpolate[i*xCol + k] = y[ jAdjustInY * xCol +k] * bandwidth[k];  
+      for( k = 0; k < xCol; k ++) interpolate[i*xCol + k] = y[ j_neighbor_y * xCol +k];  
   
     }
 
@@ -970,18 +1038,13 @@ void R_meanShiftNN(
     j = x2y[assignment[i]];
 
     // copy back location
-    for( k = 0; k < xCol; k ++) x[i*xCol + k] = y[ j * xCol +k] * bandwidth[k];  
+    for( k = 0; k < xCol; k ++) x[i*xCol + k] = y[ j * xCol +k];  
 
     // using distance to copy back
     distancesQuery[i] = prob[ j ];     
   }
 
 
-  // free everything
-  //fclose(currentFile);
-  //fclose(queryFile);
-  //fclose(query2File);
-  //fclose(query3File);
 
   free(z);
   free(weights);
@@ -989,8 +1052,11 @@ void R_meanShiftNN(
   free(y);
   free(x2y);
   free(x2yNew);
-  free(treeIndex);
+  free(mergeTreeIndex);
 
+  free(queueArrayY);
+  for( i = 0; i < xRow; i++) deleteQueue( queueArray[i] );
+  free(queueArray);
   Rprintf("\n");
 
   return; 
@@ -1001,93 +1067,4 @@ void R_meanShiftNN(
 }
 
 
-
-    /*********************************************** DEBUG *************************************/ 
-   /* 
-    for( j = 0; j < yRow; j++) {
-      if( j == 0) {
-        Rprintf("\n y: yRow = %d, xCol = %d \n\t", (int) yRow, (int) xCol );
-        for( k = 0; k < xCol; k++) Rprintf("%d\t", (int) k); 
-        Rprintf("\n");
-      }
-      Rprintf("%d:\t", (int) j);
-      for( k = 0; k < xCol; k++) Rprintf("%4.2f\t", y[ xCol * j + k]); 
-      Rprintf("\n"); 
-    }
-    
-    for( j = 0; j < yRow; j++) {
-      if( j == 0) {
-        Rprintf("\n distances: yRow = %d, nNeighbors = %d \n\t", (int) yRow, (int) nNeighbors );
-        for( k = 0; k < nNeighbors; k++) Rprintf("%d\t", (int) k); 
-        Rprintf("\n");
-      }
-      Rprintf("%d:\t", (int) j);
-      for( k = 0; k < nNeighbors; k++) Rprintf("%4.2f\t", distances[ nNeighbors * j + k]); 
-      Rprintf("\n"); 
-    }
-    
-    for( j = 0; j < yRow; j++) {
-      if( j == 0) {
-        Rprintf("\n neighbors: yRow = %d, nNeighbors = %d\n\t", (int) yRow, (int) nNeighbors );
-        for( k = 0; k < nNeighbors; k++) Rprintf("%d\t", (int) k); 
-        Rprintf("\n");
-      }
-      Rprintf("%d:\t", (int) j);
-      for( k = 0; k < nNeighbors; k++) Rprintf("%d\t", (int) neighbors[ nNeighbors * j + k]); 
-      Rprintf("\n"); 
-    }
-    
-    for( j = 0; j < yRow; j++) {
-      if( j == 0) {
-        Rprintf("\n distancesQuery: yRow = %d, 1 = %d \n\t", (int) yRow, (int) 1 );
-        for( k = 0; k < 1; k++) Rprintf("%d\t", (int) k); 
-        Rprintf("\n");
-      }
-      Rprintf("%d:\t", (int) j);
-      for( k = 0; k < 1; k++) Rprintf("%4.2f\t", distancesQuery[ 1 * j + k]); 
-      Rprintf("\n"); 
-    }
-    
-    for( j = 0; j < yRow; j++) {
-      if( j == 0) {
-        Rprintf("\n neighborsQuery: yRow = %d, 1 = %d\n\t", (int) yRow, 1 );
-        for( k = 0; k < 1; k++) Rprintf("%d\t", (int) k); 
-        Rprintf("\n");
-      }
-      Rprintf("%d:\t", (int) j);
-      for( k = 0; k < 1; k++) Rprintf("%d (%d)\t", (int) neighborsQuery[ 1 * j + k] , (int) treeIndex[ neighborsQuery[ 1 * j + k] ]); 
-      Rprintf("\n"); 
-    }
-    
-   
-    Rprintf("\n treeIndex: length = %d\n ", (int) currentTreeIndexMax );
-    for( j = 0; j < currentTreeIndexMax; j++) Rprintf("%d ", (int) treeIndex[j]); 
-    Rprintf("\n"); 
-
-    for( j = 0; j < yRow; j++) {
-      if( j == 0) {
-        Rprintf("\n prob: yRow = %d, 1 = %d \n\t", (int) yRow, (int) 1 );
-        for( k = 0; k < 1; k++) Rprintf("%d\t", (int) k); 
-        Rprintf("\n");
-      }
-      Rprintf("%d:\t", (int) j);
-      for( k = 0; k < 1; k++) Rprintf("%4.2f\t", prob[ 1 * j + k]); 
-      Rprintf("\n"); 
-    }
-    
-    for( j = 0; j < xRow; j++) {
-      if( j == 0) {
-        Rprintf("\n assignment: xRow = %d, 1 = %d\n\t", (int) xRow, 1 );
-        for( k = 0; k < 1; k++) Rprintf("%d\t", (int) k); 
-        Rprintf("\n");
-      }
-      Rprintf("%d:\t", (int) j);
-      for( k = 0; k < 1; k++) Rprintf("%d \t", (int) assignment[ 1 * j + k]);
-      Rprintf("\n"); 
-    }
-
-    Rprintf("Print Queue\n");
-    queueArrayPrint( queueArray, xRow); 
-    */ 
-    /********************************************** END DEBUG *******************************/
 

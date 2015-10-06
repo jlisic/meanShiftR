@@ -10,6 +10,7 @@ function(
   alpha = 0.1,
   iterations=1,
   epsilon = 0.0001,
+  clusterEpsilon = 0.0001,
   interpolate,
   debugTrain=F
   ) {
@@ -56,13 +57,13 @@ function(
   if( kernelMethod %in% c("NEWTON", "HYBRID")  ) {
     if( is.null(bandwidth) ) stop("bandwidth NULL for kernel method")
     if( length(bandwidth) != queryCol ) stop("bandwidth not equal to columns x")
-    if( length(bandwidth) > 1 ) {
-      queryData <- queryData %*% diag(1/bandwidth) # apply bandwidth for l2 dist
-      trainData <- trainData %*% diag(1/bandwidth) # apply bandwidth for l2 dist
-    } else {
-      queryData <- queryData / bandwidth # apply bandwidth for l2 dist
-      trainData <- trainData / bandwidth # apply bandwidth for l2 dist
-    }
+#    if( length(bandwidth) > 1 ) {
+#      queryData <- queryData %*% diag(1/bandwidth) # apply bandwidth for l2 dist
+#      trainData <- trainData %*% diag(1/bandwidth) # apply bandwidth for l2 dist
+#    } else {
+#      queryData <- queryData / bandwidth # apply bandwidth for l2 dist
+#      trainData <- trainData / bandwidth # apply bandwidth for l2 dist
+#    }
   }
 
 
@@ -73,11 +74,11 @@ function(
       if( is.null(bandwidth) ) stop("bandwidth NULL for kernel method")
       if( length(bandwidth) != queryCol ) stop("bandwidth not equal to columns x")
       if( length(bandwidth) > 1 ) {
-        interpolate <- interpolate %*% diag(1/bandwidth) # apply bandwidth for l2 dist
+        #interpolate <- interpolate %*% diag(1/bandwidth) # apply bandwidth for l2 dist
         interpolateIndex <- 1:nrow(interpolate)
   
       } else {
-        interpolate <- interpolate / bandwidth # apply bandwidth for l2 dist
+        #interpolate <- interpolate / bandwidth # apply bandwidth for l2 dist
         interpolateIndex <- 1:nrow(interpolate)
       }
     }
@@ -137,7 +138,8 @@ function(
     assignmentsDebug,                           # 24 assignment debug
     weightsDebug,                               # 25 weights debug
     neighborsDebug,                             # 26 neighbors debug
-    valuesDebug                                 # 27 values debug
+    valuesDebug,                                # 27 values debug
+    as.double(  clusterEpsilon )                # 28 cluster cut off
   )
   
   print("C running time")
