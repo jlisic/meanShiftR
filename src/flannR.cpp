@@ -513,6 +513,7 @@ void normalKernelNewton(
   int * neighbors,      /* neighbors matrix */
   double * prob,
   size_t queryRow,
+  size_t trainRow,
   size_t queryCol,
   size_t nNeighbors,
   double * bandwidth,    /* bandwidth parameters */
@@ -532,6 +533,7 @@ void normalKernelNewton(
   double denominatorMS;
   double * z;
   int currentNeighbor;
+  double tmp;
 
 /*
 6 # calculate the derivative
@@ -573,15 +575,21 @@ void normalKernelNewton(
     for( k = 0; k < nNeighbors; k++)  { 
       
       currentNeighbor = neighbors[i*nNeighbors + k];
+      if( i * nNeighbors + k >= nNeighbors * queryRow ) { 
+        Rprintf(" -- %d : %d -- \n", i*nNeighbors + k, nNeighbors * queryRow);
+        exit(0);
+      }
+      if( currentNeighbor >= trainRow ) continue; // fix for strange FLANN results
+      if( currentNeighbor < 0 ) continue; // fix for strange FLANN results
 
       /* set weight to 1 */ 
       w = 1;
 
       // for each point query over each dimension 
       for( d = 0; d < queryCol; d++)  { 
-        
-        // save a copy of the point 
-        z[d] = ( query[i * queryCol + d] - train[currentNeighbor * queryCol + d] )/bandwidth[d];
+      
+
+        z[d] = ( query[i * queryCol + d] - train[currentNeighbor * queryCol + d] ) /bandwidth[d];
         
         // double dnorm( double x, double mu, double sigma, int give_log)   
         //w *=  dnorm( z[d] , 0, 1 , 0 );
@@ -610,8 +618,6 @@ void normalKernelNewton(
         w0 = w;
       }
 */
-     
-      
       denominatorMS += w; 
     }
 
@@ -735,7 +741,7 @@ void R_meanShiftNN(
   size_t nNeighbors = (size_t) * nNeighborsPtr;
   size_t interpolateRow = (size_t) * interpolateRowPtr;
 
-  size_t debug = (size_t) assignmentsDebug[1];   // status of recording observations via debug
+  size_t debug = (size_t) assignmentsDebug[0];   // status of recording observations via debug
 
   /* indexes */
   size_t yRow = xRow; // number of rows for the update matrix for the QueryTree 
@@ -780,6 +786,7 @@ void R_meanShiftNN(
 
   /* check min cluster distance */
   queuePtr tmpPtr;
+  int * debugPtr;
   
   /* copy data over for y and x */
   for( i = 0; i < xRow * xCol; i++) {
@@ -803,8 +810,13 @@ void R_meanShiftNN(
   double dist;
 
   // double epsilon since flann uses the unsquared difference
-  *epsilon = (*epsilon) * (*epsilon);
-  *clusterEpsilon = (*clusterEpsilon) * (*clusterEpsilon);
+  if( *epsilon >= 0 ) {
+    *epsilon = (*epsilon) * (*epsilon);
+  } 
+
+  if( *clusterEpsilon >= 0 ) {
+    *clusterEpsilon = (*clusterEpsilon) * (*clusterEpsilon);
+  } 
 
   /******************* CREATE INDEX *********************/ 
   /* if KDTreeIndex */ 
@@ -862,11 +874,20 @@ void R_meanShiftNN(
 
     /* look for points in the ring set */
     //Rprintf("KNN Search: %d ----------------------------------------------------------- \n", (int) i);
+    debugPtr = neighbors; 
     index.knnSearch(yMatrix, neighborsMatrix, distancesMatrix, nNeighbors, mpSearchParameters); 
+    if( debugPtr != neighbors ) {
+      printf("non-matching %p %p\n", (void *) debugPtr, (void *) neighbors );
+      exit(1);
+    };
  
     if(kernelMethod != 3) {
      Rprintf("This kernel is not supported");
     } 
+
+    /* debug check */
+    //printMatrixFullInt(neighbors, yRow, nNeighbors);
+    /* end debug check */
   
     //Rprintf("Starting Kernel: %d ----------------------------------------------------------- \n", (int) i);
     if( kernelMethod == 3) {
@@ -876,6 +897,7 @@ void R_meanShiftNN(
         neighbors,    /* neighbors matrix */
         prob,
         yRow,
+        xRow,
         xCol,
         nNeighbors,
         bandwidth,    /* bandwidth parameters */
@@ -939,15 +961,9 @@ void R_meanShiftNN(
        distancesQuery,
        prob
     ); 
-/* 
-    if( i >= 9 ) {
-      printMatrixFullSize_t(assignment, xRow , 1 );
-      printMatrixFullDbl(y, yRow , xCol );
-    }
-*/
     
-    Rprintf("Iteration: %d Decrease = %04.2f\n", (int) i + 1, 1 - (float) yRow / (float) xRow );
-          
+   Rprintf("Iteration: %d Decrease = %04.2f\r", (int) i + 1, 1 - (float) yRow / (float) xRow );
+
     if( i < *iterations - 1 ) { // don't do a final query
 
       // update matricies
@@ -966,7 +982,6 @@ void R_meanShiftNN(
       queueArrayY[k] = queueArray[i]; 
     } 
   }
-
 
 
   // do a final merge
