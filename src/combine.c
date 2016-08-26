@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-// this is a function to combine data
+// this is a function to do combine  
 
 
 void combineData( 

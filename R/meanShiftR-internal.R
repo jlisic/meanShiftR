@@ -1,20 +1,29 @@
-.flannAlgorithmEnum <-
+.algorithmEnum <-
 function( param ) {
   
-  if( param == "FLANN_INDEX_LINEAR" ) return( 0 );
-  if( param == "FLANN_INDEX_KDTREE" ) return( 1 );
-  if( param == "FLANN_INDEX_KMEANS" ) return( 2 );
-  if( param == "FLANN_INDEX_COMPOSITE" ) return( 3 );
-  if( param == "FLANN_INDEX_KDTREE_SINGLE" ) return( 3 );  # I think this is an error in the documentation
-  if( param == "FLANN_INDEX_SAVED" ) return( 254 );
-  if( param == "FLANN_INDEX_AUTOTUNED" ) return( 255 );
+  if( param == "LINEAR" )    return( 0 );
+  if( param == "KDTREE" )    return( 1 );
+  #if( param == "DUALTREE" )  return( 2 );
+  #if( param == "LSH" )       return( 3 );
+  #if( param == "FASTGAUSS" ) return( 4 );
+  #if( param == "MERGETREE" ) return( 5 );
 
   stop( sprintf("Invalid Algorithm = %s",param) )
 }
-.returnKernelEnum <-
+.kernelEnum <-
 function( param ) {
-  if( param == "NONE" )    return( 0 );
-  if( param == "UNIFORM" ) return( 1 );
-  if( param == "NORMAL" )  return( 2 );
-  if( param == "HYBRID" )  return( 3 );
+  #if( param == "UNIFORM" ) return( 0 );
+  #if( param == "TRIANGULAR" ) return( 1 );
+  if( param == "NORMAL" )   return( 2 );
+  #if( param == "EPANECHNIKOV") return(3);
+  #if( param == "BIWEIGHT")     return(4);
+  #if( param == "TRIWEIGHT")    return(5);
+  #if( param == "TRICUBE")      return(6);
+  #if( param == "COSINE")       return(7);
+  #if( param == "LOGISTIC")     return(8);
+  #if( param == "SIGMOID")      return(9);
+  
+  stop( sprintf("Invalid Kernel = %s",param) )
 }
+
+

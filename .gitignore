@@ -4,3 +4,4 @@
 *.swo
 *.swp
 vgcore.*
+.Rproj.user

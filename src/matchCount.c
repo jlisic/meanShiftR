@@ -6,7 +6,6 @@
 #include "R.h"
 #include "Rinternals.h"
 //#define CSTACK_DEFNS 7
-#include "Rinterface.h"
 
 #include "Rmath.h"
 //#include "omp.h"
