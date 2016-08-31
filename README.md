@@ -13,9 +13,9 @@ Version: 0.50
 Date: 2016-08-28
 
 Author and Creator:
-    Jonathan Lisic, jlisic@gmail.com 
+    Jonathan Lisic, jlisic at gmail.com 
 
-Maintainer: Jonathan Lisic <jlisic@gmail.com>
+Maintainer: Jonathan Lisic <jlisic at gmail.com>
 
 Description: Performs mean shift classification using linear and 
   k-d tree based nearest neighbor implementations for the Gaussian
