@@ -4,7 +4,8 @@
 #' point, where nearest is determined by the Mahalanobis distance.  This search
 #' is performed through a k-d tree.
 #'
-#' @param point A vector to find k nearest neighbors for. 
+#' @param points n vectors stored in an n by p matrix.  k nearest neighbors are
+#'   found for each vector.
 #' @param trainData A matrix or vector of potential nearest neighbors.
 #' @param k A scalar indicating the number neighbors to find.
 #' @param weight A scalar or vector of length equal to the number of columns of 
@@ -12,10 +13,13 @@
 #'   inverse covariance matrix of the Mahalanobis distance.
 #' @param leafSize A scalar used to specify the number of points to store in the 
 #'   leaf nodes. 
-#' @return A list is returned containing two items: \code{neighbors}, a vector of 
-#'   k indexes corresponding to the nearest neighbors in  \code{trainData}.  \code{value}, a 
-#'   vector of scalars containing the k  distances between the neighbors found in 
-#'   \code{trainData} and \code{point}.
+#' @param maxDist A vector specifying the maximum value of the Mahalanobis that
+#'   will be considered.
+#' @return A list is returned containing two items: \code{neighbors}, an n by k
+#'   matrix of k indexes for each of the n vectors in \code{points}, corresponding to 
+#'   the nearest neighbors in \code{trainData}.  \code{value}, a matrix of scalars 
+#'   containing the k distances between the neighbors found in \code{trainData} 
+#'   and \code{points}.
 #'   
 #' @examples 
 #' x <- matrix(runif(20),10,2)
@@ -24,20 +28,20 @@
 #' @export
 knn_meanShift <-
 function(
-  point,                      
+  points,                      
   trainData,
   k=min(5,NROW(trainData)),
   weight,
-  leafSize=40  
+  leafSize=40,
+  maxDist=Inf
 ) {
   
 
   # get data size
+  pointsRow <- NROW(points)
   trainRow <- NROW(trainData)
-  trainCol <- length(point) 
+  trainCol <- NCOL(trainData) 
 
-  # check bandwidth and columns
-  if( length(trainData)/trainCol != trainRow) stop("Error: incorrection dimensions of point and trainData.")
   
   # check if k is set, note that if 
   k = min(k,NROW(trainData))
@@ -46,23 +50,28 @@ function(
   if( length(weight) != trainCol ) stop("Error: weight length is not equal to the number of columns.")
 
   # allocate space for the return vector for number of neighbors
-  neighbors = rep(-1,k)
-  distances = rep(Inf,k)
+  neighbors = rep(-1,k*pointsRow)
+  distances = rep(Inf,k*pointsRow)
  
   # send our data to the C program
   r.result <- .C("R_knn",
-    as.double(  point ),                 # 1 data we query
+    as.double(  t(points) ),             # 1 data we query
     as.double(  t(trainData) ),          # 2 set to search for nn 
-    as.integer( trainRow ),             # 3 number of rows of data to search 
-    as.integer( trainCol ),              # 4 number of columns of data to search 
-    as.double( distances ),              # 5 number of neighbors
-    as.integer( neighbors ),             # 6 k neighbors 
-    as.integer(  k ),                    # 7 k 
-    as.double( weight ),
-    as.integer( leafSize ),              # 8 number of nodes in the leaf 
+    as.integer( pointsRow ),             # 3 number of rows of points 
+    as.integer( trainRow ),              # 4 number of rows of data to search 
+    as.integer( trainCol ),              # 5 number of columns of data to search 
+    as.double( distances ),              # 6 number of neighbors
+    as.integer( neighbors ),             # 7 k neighbors 
+    as.integer(  k ),                    # 8 k 
+    as.double( weight ),                 # 9 weights for dist
+    as.integer( leafSize ),              # 10 number of nodes in the leaf 
+    as.double(maxDist),                  # 11 max acceptable distance
     NAOK=T
   )
 
-  return( list( neighbors=r.result[[6]], distances=r.result[[5]] ) )
+  return( list( 
+               neighbors=matrix(r.result[[7]],ncol=k,byrow=T) , 
+               distances=matrix(r.result[[6]],ncol=k,byrow=T) 
+               ) )
   
 }

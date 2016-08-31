@@ -31,8 +31,10 @@
 #'   clusters.  This distance is applied after all iterations have finished and in 
 #'   order of the rows of \code{queryData}.
 #' @param parameters A scalar or vector of paramters used by the specific algorithm.
-#'   There are no optional parameters for the "LINEAR" method, "KDTREE" supports an 
-#'   optional parameter for the maximum number of points to store in a leaf node.
+#'   There are no optional parameters for the "LINEAR" method, "KDTREE" supports  
+#'   optional parameters for the maximum number of points to store in a leaf node
+#'   and the maximum value for the quadratic form in the normal kernel, ignoring
+#'   the constant value -0.5.
 #' @return A list is returned containing two items: \code{assignment}, a vector of 
 #'   classifications.  \code{value}, a vector or matrix containing the location of 
 #'   the classified local maxima in the support, each row is associated with the 
@@ -41,6 +43,13 @@
 #' @examples 
 #' x <- matrix(runif(20),10,2)
 #' classification <- meanShift(x,x)
+#'
+#' x <- matrix(runif(20),10,2)
+#' classification <- meanShift(x,x, 
+#' algorithm="KDTREE", 
+#' nNeighbor=8, 
+#' parameters=c(5,7.1) )
+#'
 #' @useDynLib meanShiftR
 #' @export
 
@@ -100,11 +109,12 @@ function(
   # kdtree
   if( algorithmEnum == 1 ) {
     if( !is.null(parameters)) {
-      intParameters = parameters 
+      intParameters = parameters[1] 
+      dblParameters = parameters[2] 
     } else {
       intParameters = min( 40, trainRow ) 
+      dblParameters <- 100 
     }
-    dblParameters <- 0
   } else {
     intParameters <- 0
     dblParameters <- 0
@@ -128,7 +138,7 @@ function(
     as.integer( kernelEnum ),                   # 13 kernel enumeration
     as.integer( algorithmEnum ),                # 14 algorithm enumeration
     as.integer( intParameters ),                # 15 integer parameters
-    as.integer( dblParameters )                # 16 double parameters
+    as.double( dblParameters )                # 16 double parameters
   )
   
   #prob <- matrix(r.result[[3]],ncol=1)

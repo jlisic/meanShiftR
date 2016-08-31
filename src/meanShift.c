@@ -97,7 +97,6 @@ void normalKernelNewton_preDist(
   ) {
 
   size_t i; /* query data index */
-  size_t j; /* build data index */ 
   size_t k; /* neighbor index */
   size_t d; /* column index */
 
@@ -138,6 +137,8 @@ void normalKernelNewton_preDist(
 
     /* iterate over each neighbor */
     for( k = 0; k < nNeighbors; k++)  { 
+      
+      if( distance[ i*nNeighbors + k] == INFINITY ) continue;
      
       neighborValue = train + neighbors[i*nNeighbors + k] * queryCol;
 
@@ -201,7 +202,6 @@ void normalKernelNewton(
   ) {
 
   size_t i; /* query data index */
-  size_t j; /* build data index */ 
   size_t k; /* neighbor index */
   size_t d; /* column index */
 
@@ -302,7 +302,8 @@ void R_meanShift(
   double * epsilonClusterPtr,           /* not used */
   int * kernelEnumPtr,           /* not used */
   int * algorithmEnumPtr,        /* not used */
-  int * intParameters
+  int * intParameters,
+  int * dblParameters
   ) {
 
   // simplify the interface by dereferencing the pointers 
@@ -319,12 +320,9 @@ void R_meanShift(
 
   size_t i,j,k; // index 
 
-//clock_t begin, end; double time_spent;
-
-
   int m;  // max number of clusters
   double min_dist; // min dist for cluster assignment
-  size_t min_j;  // current min for cluster assignment
+  size_t min_j = 0;  // current min for cluster assignment
 
   // used to simplify bandwidth calculation
   double * bandwidth2 = (double *) calloc( queryCol, sizeof(double)); 
@@ -398,14 +396,11 @@ void R_meanShift(
     // K-d Tree
     // *********************************** 
     if( *algorithmEnumPtr == 1 ) {
-//begin=clock();
 
       // Setup Initial Data Sets 
       #pragma omp for 
-      for(j = 0; j < queryRow*nNeighbors; j++) {
-        distances[j] = INFINITY; 
-        //neighbors[j] = 0;
-      }
+      for(j = 0; j < queryRow*nNeighbors; j++) distances[j] = INFINITY; 
+
       // find neighbors
       #pragma omp for 
       for(j = 0; j < queryRow; j++)  
@@ -415,15 +410,10 @@ void R_meanShift(
             &(query[j*queryCol]),      // point to query
             &(neighbors[j*nNeighbors]), // indexes returned
             &(distances[j*nNeighbors]), // distances returned
-            INFINITY,                  // initial min distance
+            dblParameters[0],           // initial min distance
             bandwidth2,
             &tieBreak                  // not used
             );
-/*
-end=clock();
-time_spent = (double) (end - begin) / CLOCKS_PER_SEC;
-printf("knn time taken = %f\n",time_spent);
-*/
 
     }  
  
@@ -450,8 +440,6 @@ printf("knn time taken = %f\n",time_spent);
     // linear 
     // *********************************** 
     
-//begin=clock();
-
     if( *algorithmEnumPtr == 0 ) {
       normalKernelNewton(
         query,      
@@ -482,11 +470,6 @@ printf("knn time taken = %f\n",time_spent);
         alpha
       ); 
     }
-/*
-end=clock();
-time_spent = (double) (end - begin) / CLOCKS_PER_SEC;
-printf("kernel calc time taken = %f\n",time_spent);
-*/  
     /**********************************************/
     /* 3. check terminal conditions */
     /**********************************************/

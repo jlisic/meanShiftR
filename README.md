@@ -1,14 +1,28 @@
-meanShiftR
-==========
+# meanShiftR  
+[![Build Status](https://travis-ci.org/jlisic/meanShiftR.svg?branch=master)](https://travis-ci.org/jlisic/meanShiftR)
+[![](http://www.r-pkg.org/badges/version/meanShiftR)](http://www.r-pkg.org/pkg/meanShiftR)
+[![CRAN RStudio mirror downloads](http://cranlogs.r-pkg.org/badges/meanShiftR)](http://www.r-pkg.org/pkg/meanShiftR)
+A Computatinally Efficient Mean Shift Implementation 
 
-R package for mean shift classification.
+Package: meanShiftR
 
-This R package requires that the flann library and development libraries are installed.  On OS X flann is available throught brew or ports, under Linux you should refer to your package management system repository.
+Type: Package
 
-If you are having issues with hdf5.h not being found on OS X, and are using brew.  You might want to just do 
+Version: 0.50 
 
-  R CMD INSTALL --configure-vars='INCLUDE_DIR=/usr/local/include' meanShiftR 
+Date: 2016-08-28
 
-This avoids using pkg-config, which at least on my laptop causes some odities.
+Author and Creator:
+    Jonathan Lisic, jlisic@gmail.com 
 
+Maintainer: Jonathan Lisic <jlisic@gmail.com>
 
+Description: Performs mean shift classification using linear and 
+  k-d tree based nearest neighbor implementations for the Gaussian
+  kernel. 
+
+Depends: R (>= 3.1.0)
+
+License: GPL (>= 2)
+
+RoxygenNote: 5.0.1

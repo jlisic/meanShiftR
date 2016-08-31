@@ -4,11 +4,12 @@
 \alias{knn_meanShift}
 \title{K-d tree based k nearest neighbor search}
 \usage{
-knn_meanShift(point, trainData, k = min(5, NROW(trainData)), weight,
-  leafSize = 40)
+knn_meanShift(points, trainData, k = min(5, NROW(trainData)), weight,
+  leafSize = 40, maxDist = Inf)
 }
 \arguments{
-\item{point}{A vector to find k nearest neighbors for.}
+\item{points}{n vectors stored in an n by p matrix.  k nearest neighbors are
+found for each vector.}
 
 \item{trainData}{A matrix or vector of potential nearest neighbors.}
 
@@ -20,12 +21,16 @@ inverse covariance matrix of the Mahalanobis distance.}
 
 \item{leafSize}{A scalar used to specify the number of points to store in the 
 leaf nodes.}
+
+\item{maxDist}{A vector specifying the maximum value of the Mahalanobis that
+will be considered.}
 }
 \value{
-A list is returned containing two items: \code{neighbors}, a vector of 
-  k indexes corresponding to the nearest neighbors in  \code{trainData}.  \code{value}, a 
-  vector of scalars containing the k  distances between the neighbors found in 
-  \code{trainData} and \code{point}.
+A list is returned containing two items: \code{neighbors}, an n by k
+  matrix of k indexes for each of the n vectors in \code{points}, corresponding to 
+  the nearest neighbors in \code{trainData}.  \code{value}, a matrix of scalars 
+  containing the k distances between the neighbors found in \code{trainData} 
+  and \code{points}.
 }
 \description{
 \code{knn_meanShift} performs a search for the k nearest neighbors of a single 

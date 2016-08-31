@@ -1,0 +1,4 @@
+#' @param kernelType A string indicating the kernel to use, supported kernels
+#'   include "UNIFORM", "TRIANGULAR", "EPANECHNIKOV", "NORMAL", "BIWEIGHT",
+#'   "TRIWEIGHT", "TRICUBE", "COSINE", "LOGISTIC", and "SIGMOID".  The default
+#'   is the normal kernel.

@@ -24,9 +24,9 @@ approximating the kernel density estimate.  The default is all data.}
 searches.  Currently, only "LINEAR" and "KDTREE" methods are supported.}
 
 \item{bandwidth}{A vector of length equal to the number of columns in the 
-queryData matrix, or one when queryData is a scalar.  This value will be used
-in the kernel density estimate for steepest ascent classification.  The default
-is one for each dimension.}
+queryData matrix, or length one when queryData is a vector.  This value will be 
+used in the kernel density estimate for steepest ascent classification.  The 
+default is one for each dimension.}
 
 \item{alpha}{A scalar tuning parameter for normal kernels.  When this paramter
 is set to zero, the mean shift algorithm will operate as usual.  When this
@@ -46,8 +46,10 @@ clusters.  This distance is applied after all iterations have finished and in
 order of the rows of \code{queryData}.}
 
 \item{parameters}{A scalar or vector of paramters used by the specific algorithm.
-There are no optional parameters for the "LINEAR" method, "KDTREE" supports an 
-optional parameter for the maximum number of points to store in a leaf node.}
+There are no optional parameters for the "LINEAR" method, "KDTREE" supports  
+optional parameters for the maximum number of points to store in a leaf node
+and the maximum value for the quadratic form in the normal kernel, ignoring
+the constant value -0.5.}
 }
 \value{
 A list is returned containing two items: \code{assignment}, a vector of 
@@ -62,5 +64,12 @@ steepest ascent to local maxima in a kernel density estimate.
 \examples{
 x <- matrix(runif(20),10,2)
 classification <- meanShift(x,x)
+
+x <- matrix(runif(20),10,2)
+classification <- meanShift(x,x, 
+algorithm="KDTREE", 
+nNeighbor=8, 
+parameters=c(5,7.1) )
+
 }
 

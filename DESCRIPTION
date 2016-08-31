@@ -1,8 +1,8 @@
 Package: meanShiftR
 Type: Package
 Title: A Computatinally Efficient Mean Shift Implementation 
-Version: 1.0.1
-Date: 2016-08-01
+Version: 0.50
+Date: 2016-08-28
 Authors@R: c(
     person("Jonathan", "Lisic", , "jlisic@gmail.com", c("aut", "cre"))
     )

@@ -263,7 +263,6 @@ void getClosest(
   ) {
 
   size_t i,j,l,d;
-  size_t closestIndex = r->n;
 
   size_t K = r->K;
   double * x = r->data;            
@@ -341,7 +340,6 @@ void find_knn(
   ) {
 
   double distMin;
-  size_t i;
   
   // return if c == NULL 
   if( c == NULL ) {
@@ -585,26 +583,32 @@ int main () {
 
 
 void R_knn( 
-  double * queryPoint,  // point to query for
+  double * queryPoints,  // point to query for
   double * x,           // data to reference for the query
+  int * xnrowPtr,
   int * nrowPtr,        // number of rows
   int * ncolPtr,        // number of columns
   double * kDist,       // distance vector
   int * indexInt,       // length of index
   int * kPtr,           // number of nearest neighbors
   double * weight,
-  int * leafSizePtr     // leaf size
+  int * leafSizePtr,     // leaf size
+  double * maxDist
  ) {
 
   size_t i;
   size_t j;
-  double dist;
+  double * dist;
+  double * queryPoint; 
   double tieBreak = -1;
+  size_t * kIndex = NULL;
 
   size_t k        = (size_t) * kPtr;
   size_t ncol     = (size_t) * ncolPtr;
   size_t nrow     = (size_t) * nrowPtr;
+  size_t xnrow     = (size_t) * xnrowPtr;
   size_t leafSize = (size_t) * leafSizePtr;
+
 
   rootNodePtr myTree = NULL;
 
@@ -617,7 +621,6 @@ void R_knn(
 
   // k index
   // this will get freed
-  size_t * kIndex = calloc(k, sizeof(size_t));
   
   // build the index
   myTree->root = buildIndex( 
@@ -627,19 +630,29 @@ void R_knn(
     index        // pointer to obs indexes 
   ); 
 
-  // Setup Initial Data Sets 
-  for(i = 0; i < k; i++) kIndex[i] = myTree->n;
-  for(i = 0; i < k; i++) kDist[i] = INFINITY; 
+  #pragma omp parallel private(i,j,kIndex,tieBreak,queryPoint,dist)
+  {
+
+    kIndex = calloc(k, sizeof(size_t));
+
+    #pragma omp for
+    for(i=0; i < xnrow; i++) { 
+      for(j = 0; j < k; j++) kIndex[j] = myTree->n;
   
-  // query tree
-  find_knn( myTree, myTree->root, k, queryPoint, kIndex, kDist, INFINITY, weight, &tieBreak);
-  
-  // copy data over 
-  for( i = 0; i < k; i ++) indexInt[i] = 1 + (int) kIndex[i]; 
+      queryPoint = queryPoints + i*ncol; 
+      dist = kDist + i*k; 
+      // query tree
+      find_knn( myTree, myTree->root, k, queryPoint, kIndex, dist, *maxDist, weight, &tieBreak);
+    
+      // copy data over 
+      for( j = 0; j < k; j++) indexInt[i*k +j] = 1 + (int) kIndex[j]; 
+    }
+
+    free(kIndex);
+  }
 
   // clean up
   deleteTree( myTree );
-  free(kIndex);
 
   return;
 }
