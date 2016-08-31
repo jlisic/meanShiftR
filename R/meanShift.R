@@ -39,7 +39,7 @@
 #'   classifications.  \code{value}, a vector or matrix containing the location of 
 #'   the classified local maxima in the support, each row is associated with the 
 #'   classified index in \code{assignment}.  
-#'   
+#'
 #' @examples 
 #' x <- matrix(runif(20),10,2)
 #' classification <- meanShift(x,x)
@@ -52,6 +52,14 @@
 #'
 #' @useDynLib meanShiftR
 #' @export
+#'
+#' @references
+#' Cheng, Y. (1995). \emph{Mean shift, mode seeking, and clustering}. IEEE transactions on pattern analysis and machine intelligence, 17(8), 790-799.
+#' 
+#' Fukunaga, K., & Hostetler, L. (1975). \emph{The estimation of the gradient of a density function, with applications in pattern recognition.} IEEE transactions on information theory, 21(1), 32-40.
+#' 
+#' Lisic, J. (2015). Parcel Level Agricultural Land Cover Prediction (Doctoral dissertation, George Mason University).
+#'
 
 
 meanShift <-

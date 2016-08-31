@@ -72,4 +72,11 @@ nNeighbor=8,
 parameters=c(5,7.1) )
 
 }
+\references{
+Cheng, Y. (1995). \emph{Mean shift, mode seeking, and clustering}. IEEE transactions on pattern analysis and machine intelligence, 17(8), 790-799.
+
+Fukunaga, K., & Hostetler, L. (1975). \emph{The estimation of the gradient of a density function, with applications in pattern recognition.} IEEE transactions on information theory, 21(1), 32-40.
+
+Lisic, J. (2015). Parcel Level Agricultural Land Cover Prediction (Doctoral dissertation, George Mason University).
+}
 
