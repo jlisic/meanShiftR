@@ -28,9 +28,9 @@ queryData matrix, or length one when queryData is a vector.  This value will be
 used in the kernel density estimate for steepest ascent classification.  The 
 default is one for each dimension.}
 
-\item{alpha}{A scalar tuning parameter for normal kernels.  When this paramter
+\item{alpha}{A scalar tuning parameter for normal kernels.  When this parameter
 is set to zero, the mean shift algorithm will operate as usual.  When this
-paramter is set to one, the mean shift algorithm will be approximated through
+parameter is set to one, the mean shift algorithm will be approximated through
 Newton's Method.  When set to a value between zero and one, a generalization
 of Newton's Method and mean shift will be used instead providing a means
 to balance convergence speed with stability.  The default is zero, mean shift.}
@@ -45,7 +45,7 @@ and \code{i+1} is less than epsilon, then iteration ceases on this point.}
 clusters.  This distance is applied after all iterations have finished and in 
 order of the rows of \code{queryData}.}
 
-\item{parameters}{A scalar or vector of paramters used by the specific algorithm.
+\item{parameters}{A scalar or vector of parameters used by the specific algorithm.
 There are no optional parameters for the "LINEAR" method, "KDTREE" supports  
 optional parameters for the maximum number of points to store in a leaf node
 and the maximum value for the quadratic form in the normal kernel, ignoring

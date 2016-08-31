@@ -1,6 +1,6 @@
 Package: meanShiftR
 Type: Package
-Title: A Computatinally Efficient Mean Shift Implementation 
+Title: A Computationally Efficient Mean Shift Implementation 
 Version: 0.50
 Date: 2016-08-28
 Authors@R: c(
