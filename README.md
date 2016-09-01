@@ -2,6 +2,7 @@
 [![Build Status](https://travis-ci.org/jlisic/meanShiftR.svg?branch=master)](https://travis-ci.org/jlisic/meanShiftR)
 [![](http://www.r-pkg.org/badges/version/meanShiftR)](http://www.r-pkg.org/pkg/meanShiftR)
 [![CRAN RStudio mirror downloads](http://cranlogs.r-pkg.org/badges/meanShiftR)](http://www.r-pkg.org/pkg/meanShiftR)
+
 A Computationally Efficient Mean Shift Implementation 
 
 Package: meanShiftR
