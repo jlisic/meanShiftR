@@ -65,7 +65,7 @@
 meanShift <-
 function(
   queryData,                      
-  trainData,                       
+  trainData = queryData,                       
   nNeighbors = NROW(trainData),   
   algorithm = "LINEAR",
   bandwidth,
