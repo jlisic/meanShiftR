@@ -68,7 +68,8 @@ function(
   trainData,                       
   nNeighbors = NROW(trainData),   
   algorithm = "LINEAR",
-  bandwidth,
+  kernelType = "NORMAL",
+  bandwidth = rep(1,NCOL(trainData)),
   alpha = 0.0,
   iterations=10,
   epsilon = 0.00000001,
@@ -76,27 +77,19 @@ function(
   parameters = NULL
 ) {
   
-  # handle missing bandwidth
-  if( missing(bandwidth) ){
-    if(is.null(ncol(trainData))) {
-      bandwidth=1
-    } else {
-      bandwidth = rep(1,ncol(trainData))
-    }
-  }
-  
-
   # get data size
   trainRow <- NROW(trainData)
   queryRow <- NROW(queryData)
-  queryCol <- length(bandwidth) 
+  queryCol <- NCOL(trainData) 
 
   # check bandwidth and columns
   if( length(trainData)/queryCol != trainRow) 
     stop(sprintf("Error: train rows do not match (%d != %d)", length(trainData)/queryCol, trainRow))
   if( length(queryData)/queryCol != queryRow) 
     stop(sprintf("Error: query rows do not match (%d != %d)", length(queryData)/queryCol, queryRow))
-  
+  if( length(bandwidth) != queryCol )  
+    stop(sprintf("Error: bandwidth does not match the number of colums (%d != %d)", length(bandwidth), queryCol))
+
   # check if nNeighbors is set, note that if 
   nNeighbors = min(nNeighbors,NROW(trainData))
 
@@ -108,7 +101,6 @@ function(
   if( iterations < 1 ) stop("Error: iterations are not at least one.") 
 
   # convert algorithm ane kernel to enumerated classes
-  kernelType = "NORMAL"
   kernelEnum <- .kernelEnum( kernelType ) 
   algorithmEnum <- .algorithmEnum( algorithm ) 
 
@@ -154,5 +146,7 @@ function(
   value <- matrix(r.result[[1]],byrow=TRUE,ncol=queryCol) 
 
   return( list( assignment=assignment, value=value) )
+
+} 
   
-}
+

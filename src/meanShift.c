@@ -176,7 +176,7 @@ void normalKernelNewton_preDist(
 
 
 /***********************************************************************************************/
-/* this is an alternative kernel                                                               */
+/* this is a normal kernel                                                               */
 /***********************************************************************************************/
 /*
  * query      - query matrix    queryRow by queryCol
@@ -281,6 +281,208 @@ void normalKernelNewton(
 }
 
 
+/***********************************************************************************************/
+/* this is a Epanechnikov product kernel                                                       */
+/***********************************************************************************************/
+/*
+ * query      - query matrix    queryRow by queryCol
+ * train      - train matrix    trainRow by queryCol
+ * neighbors  - neighbors       nNeighbors by queryRow
+ * queryRow   - rows for query
+ * trainRow   - rows for train
+ * queryCol   - columns for query and train
+ * nNeighbors - number of neighbors
+ * bandwidth  - bandwidth parameter
+ * alpha      - alpha parameter
+ */
+void epanechnikov_Kernel(
+  double * query,        /* query matrix */
+  double * train,        /* train matrix */
+  size_t * neighbors,      /* neighbors matrix */
+  size_t queryRow,
+  size_t trainRow,
+  size_t queryCol,
+  size_t nNeighbors,
+  double * bandwidth    /* the squared reciprical of the bandwidth */
+  ) {
+
+  size_t i; /* query data index */
+  size_t k; /* neighbor index */
+  size_t d; /* column index */
+
+  double * numerator;
+  double * denominator;
+  double w;
+  size_t currentNeighbor;
+  double * u2; 
+  double l2_distance;
+
+  //omp_set_num_threads(1);
+
+  /* iterate over each query point */ 
+  #pragma omp parallel private(i,d,k,w,currentNeighbor,numerator,denominator,u2,l2_distance)
+  {
+
+  // alloc from heap 
+  numerator = (double * ) calloc( queryCol, sizeof(double)); // used to store difference
+  denominator = (double * ) calloc( queryCol, sizeof(double)); // used to store difference
+  u2  = (double * ) calloc( queryCol, sizeof(double)); // used to store difference
+  
+  #pragma omp for
+  for( i = 0; i < queryRow; i++)  {
+   
+    // check if we are already at the terminal condition 
+    if( neighbors[i*nNeighbors] == nNeighbors) continue;
+
+    for( d = 0; d < queryCol; d++) {
+      numerator[d] = 0; 
+      denominator[d] = 0; 
+    }
+   
+    // iterate over each neighbor 
+    for( k = 0; k < nNeighbors; k++)  { 
+      
+      currentNeighbor = neighbors[i*nNeighbors + k];
+      w = 1;
+      l2_distance = 0;
+
+      // calculate total and l2 distance components 
+      for( d = 0; d < queryCol; d++)  { 
+        u2[d]=( query[i * queryCol + d] - train[currentNeighbor * queryCol + d] ) / bandwidth[d]; 
+        u2[d] *= u2[d];
+        w *= (1-u2[d]); 
+        l2_distance += u2[d];
+      }
+
+      if( l2_distance > 1 ) w = 0;
+      
+      // aggregate the result to the numerator and denominator 
+      if( w > 0 ) { 
+        for( d = 0; d < queryCol; d++)  { 
+          if( u2[d] != 1) {
+            numerator[d] += train[currentNeighbor * queryCol + d] * w / (1-u2[d]); 
+            denominator[d] += w / (1-u2[d]); 
+          }
+        }
+      }  
+    }
+
+    // divide by bandwidth 
+    for( d = 0; d < queryCol; d++) {
+      query[i*queryCol + d] = numerator[d]/denominator[d] ;  
+    }
+  }
+  free(u2); 
+  free(numerator);
+  free(denominator);
+
+  } // for omp
+
+  return;
+}
+
+
+
+/***********************************************************************************************/
+/* this is a biweight product kernel                                                            */
+/***********************************************************************************************/
+/*
+ * query      - query matrix    queryRow by queryCol
+ * train      - train matrix    trainRow by queryCol
+ * neighbors  - neighbors       nNeighbors by queryRow
+ * queryRow   - rows for query
+ * trainRow   - rows for train
+ * queryCol   - columns for query and train
+ * nNeighbors - number of neighbors
+ * bandwidth  - bandwidth parameter
+ * alpha      - alpha parameter
+ */
+void biweight_Kernel(
+  double * query,        /* query matrix */
+  double * train,        /* train matrix */
+  size_t * neighbors,      /* neighbors matrix */
+  size_t queryRow,
+  size_t trainRow,
+  size_t queryCol,
+  size_t nNeighbors,
+  double * bandwidth    /* the squared reciprical of the bandwidth */
+  ) {
+
+  size_t i; /* query data index */
+  size_t k; /* neighbor index */
+  size_t d; /* column index */
+
+  double * numerator;
+  double * denominator;
+  double w;
+  size_t currentNeighbor;
+  double * u2;
+  double  l2_distance;
+
+  //omp_set_num_threads(1);
+
+  /* iterate over each query point */ 
+  #pragma omp parallel private(i,d,k,w,currentNeighbor,numerator,denominator,u2,l2_distance)
+  {
+
+  // alloc from heap 
+  numerator = (double * ) calloc( queryCol, sizeof(double)); // used to store difference
+  denominator = (double * ) calloc( queryCol, sizeof(double)); // used to store difference
+  u2  = (double * ) calloc( queryCol, sizeof(double)); // used to store difference
+  
+  #pragma omp for
+  for( i = 0; i < queryRow; i++)  {
+   
+    // check if we are already at the terminal condition 
+    if( neighbors[i*nNeighbors] == nNeighbors) continue;
+
+    for( d = 0; d < queryCol; d++) {
+      numerator[d] = 0; 
+      denominator[d] = 0;
+    }
+   
+    // iterate over each neighbor 
+    for( k = 0; k < nNeighbors; k++)  { 
+      currentNeighbor = neighbors[i*nNeighbors + k];
+      w = 1;
+      l2_distance = 0;
+
+      // calculate total and l2 distance components 
+      for( d = 0; d < queryCol; d++)  { 
+        u2[d]=( query[i * queryCol + d] - train[currentNeighbor * queryCol + d] ) / bandwidth[d]; 
+        u2[d] *= u2[d];
+        w *= (1-u2[d]); 
+        w *= (1-u2[d]); 
+        l2_distance += u2[d];
+      }
+
+      if( l2_distance > 1 ) w = 0;
+      
+      // aggregate the result to the numerator and denominator 
+      if( w > 0 ) { 
+        for( d = 0; d < queryCol; d++)  { 
+          if( u2[d] != 1) {
+            numerator[d] += train[currentNeighbor * queryCol + d] * w / (1-u2[d]); 
+            denominator[d] += w / (1-u2[d]); 
+          }
+        }
+      }  
+      
+    }
+
+    // divide by bandwidth 
+    for( d = 0; d < queryCol; d++) {
+      query[i*queryCol + d] = numerator[d]/denominator[d] ;  
+    }
+  }
+  free(u2); 
+  free(numerator);
+  free(denominator);
+
+  } // for omp
+
+  return;
+}
 
 
 
@@ -441,17 +643,46 @@ void R_meanShift(
     // *********************************** 
     
     if( *algorithmEnumPtr == 0 ) {
-      normalKernelNewton(
-        query,      
-        train,      
-        neighbors,    
-        queryRow,
-        trainRow,
-        queryCol,
-        nNeighbors,
-        bandwidth2,    
-        alpha
-      ); 
+      if( *kernelEnumPtr == 0 ) {
+        Rprintf("normalKernel\n");
+        normalKernelNewton(
+          query,      
+          train,      
+          neighbors,    
+          queryRow,
+          trainRow,
+          queryCol,
+          nNeighbors,
+          bandwidth2,    
+          alpha
+        ); 
+      }
+      else if( *kernelEnumPtr == 1 ) {
+        Rprintf("EpanechnikovKernel\n");
+        epanechnikov_Kernel(
+          query,        
+          train,        
+          neighbors,     
+          queryRow,
+          trainRow,
+          queryCol,
+          nNeighbors,
+          bandwidth    
+        );
+      } 
+      else if( *kernelEnumPtr == 2 ) {
+        Rprintf("biweightkernel\n");
+        biweight_Kernel(
+          query,        
+          train,        
+          neighbors,     
+          queryRow,
+          trainRow,
+          queryCol,
+          nNeighbors,
+          bandwidth    
+        );
+      } 
     }  
     // *********************************** 
     // K-d Tree
@@ -498,7 +729,6 @@ void R_meanShift(
   
 
   /* end iteration */
-
   }
 
 
@@ -531,6 +761,8 @@ void R_meanShift(
         dist_tmp *= dist_tmp;
         dist_den += dist_tmp;
       }
+        
+      //if( i == 524 ) printf("%d:\td=%f num=%f, den=%f, cluster=%f, point=%f\n", (int)  j, dist_num/dist_den, dist_num, dist_den, queryNew[j*queryCol], query[i*queryCol]);
   
       if( dist_num / dist_den < min_dist ) {
         min_dist = dist_num / dist_den;
@@ -540,7 +772,7 @@ void R_meanShift(
     }
 
     // assign cluster 
-    if (min_dist <= epsilonCluster ) {
+    if (min_dist < epsilonCluster ) {
       assignment[i] = min_j;
       for(k = 0; k < queryCol;k++) 
         query[i*queryCol +k] = queryNew[min_j*queryCol + k];
