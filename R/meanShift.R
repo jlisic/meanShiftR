@@ -7,7 +7,7 @@
 #'   shift algorithm.  Values must be finite and non-missing.
 #' @param trainData A matrix or vector of points used to form a kernel density
 #'   estimate.  The local maxima from this kernel density estimate will be used
-#'   for steepest ascent classification.
+#'   for steepest ascent classification.  If missing, \code{queryData} is set to \code{trainData}.
 #' @param nNeighbors A scalar indicating the number neighbors to consider for
 #'   the kernel density estimate.  This is useful to speed up approximation by
 #'   approximating the kernel density estimate.  The default is all data.
@@ -65,7 +65,7 @@
 meanShift <-
 function(
   queryData,                      
-  trainData,                       
+  trainData = queryData,                       
   nNeighbors = NROW(trainData),   
   algorithm = "LINEAR",
   kernelType = "NORMAL",
