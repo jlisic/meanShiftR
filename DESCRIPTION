@@ -1,8 +1,8 @@
 Package: meanShiftR
 Type: Package
 Title: A Computationally Efficient Mean Shift Implementation 
-Version: 0.50
-Date: 2016-08-28
+Version: 0.60
+Date: 2017-09-02
 Authors@R: c(
     person("Jonathan", "Lisic", , "jlisic@gmail.com", c("aut", "cre"))
     )
@@ -10,8 +10,8 @@ URL: http://meanmean.me/meanshift/r/cran/2016/08/28/meanShiftR.html
 BugReports: https://github.com/jlisic/meanShiftR/issues
 Maintainer: Jonathan Lisic <jlisic@gmail.com>
 Description: Performs mean shift classification using linear and 
-  k-d tree based nearest neighbor implementations for the Gaussian
-  kernel. 
+  k-d tree based nearest neighbor implementations for the Gaussian,
+  Epanechnikov, and biweight product kernels. 
 Depends: R (>= 3.1.0)
 License: GPL (>= 2)
-RoxygenNote: 5.0.1
+RoxygenNote: 6.0.1

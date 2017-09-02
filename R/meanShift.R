@@ -13,13 +13,17 @@
 #'   approximating the kernel density estimate.  The default is all data.
 #' @param algorithm A string indicating the algorithm to use for nearest neighbor
 #'   searches.  Currently, only "LINEAR" and "KDTREE" methods are supported.
+#' @param kernelType A string indicating the kernel associated with the kernel 
+#'   density estimate that the mean shift is optimizing over.  The possible
+#'   kernels are NORMAL, EPANECHNIKOV, BIWEIGHT, TRIWEIGHT, and TRICUBE. The default
+#'   is NORMAL.
 #' @param bandwidth A vector of length equal to the number of columns in the 
 #'   queryData matrix, or length one when queryData is a vector.  This value will be 
 #'   used in the kernel density estimate for steepest ascent classification.  The 
 #'   default is one for each dimension.
-#' @param alpha A scalar tuning parameter for normal kernels.  When this paramter
+#' @param alpha A scalar tuning parameter for normal kernels.  When this parameter
 #'   is set to zero, the mean shift algorithm will operate as usual.  When this
-#'   paramter is set to one, the mean shift algorithm will be approximated through
+#'   parameter is set to one, the mean shift algorithm will be approximated through
 #'   Newton's Method.  When set to a value between zero and one, a generalization
 #'   of Newton's Method and mean shift will be used instead providing a means
 #'   to balance convergence speed with stability.  The default is zero, mean shift.
@@ -45,7 +49,7 @@
 #' classification <- meanShift(x,x)
 #'
 #' x <- matrix(runif(20),10,2)
-#' classification <- meanShift(x,x, 
+#' classification <- meanShift(x, 
 #' algorithm="KDTREE", 
 #' nNeighbor=8, 
 #' parameters=c(5,7.1) )

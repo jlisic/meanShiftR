@@ -4,9 +4,10 @@
 \alias{meanShift}
 \title{Mean shift classification}
 \usage{
-meanShift(queryData, trainData, nNeighbors = NROW(trainData),
-  algorithm = "LINEAR", bandwidth, alpha = 0, iterations = 10,
-  epsilon = 1e-08, epsilonCluster = 1e-04, parameters = NULL)
+meanShift(queryData, trainData = queryData, nNeighbors = NROW(trainData),
+  algorithm = "LINEAR", kernelType = "NORMAL", bandwidth = rep(1,
+  NCOL(trainData)), alpha = 0, iterations = 10, epsilon = 1e-08,
+  epsilonCluster = 1e-04, parameters = NULL)
 }
 \arguments{
 \item{queryData}{A matrix or vector of points to be classified by the mean
@@ -14,7 +15,7 @@ shift algorithm.  Values must be finite and non-missing.}
 
 \item{trainData}{A matrix or vector of points used to form a kernel density
 estimate.  The local maxima from this kernel density estimate will be used
-for steepest ascent classification.}
+for steepest ascent classification.  If missing, \code{queryData} is set to \code{trainData}.}
 
 \item{nNeighbors}{A scalar indicating the number neighbors to consider for
 the kernel density estimate.  This is useful to speed up approximation by
@@ -22,6 +23,11 @@ approximating the kernel density estimate.  The default is all data.}
 
 \item{algorithm}{A string indicating the algorithm to use for nearest neighbor
 searches.  Currently, only "LINEAR" and "KDTREE" methods are supported.}
+
+\item{kernelType}{A string indicating the kernel associated with the kernel 
+density estimate that the mean shift is optimizing over.  The possible
+kernels are NORMAL, EPANECHNIKOV, BIWEIGHT, TRIWEIGHT, and TRICUBE. The default
+is NORMAL.}
 
 \item{bandwidth}{A vector of length equal to the number of columns in the 
 queryData matrix, or length one when queryData is a vector.  This value will be 
@@ -45,7 +51,7 @@ and \code{i+1} is less than epsilon, then iteration ceases on this point.}
 clusters.  This distance is applied after all iterations have finished and in 
 order of the rows of \code{queryData}.}
 
-\item{parameters}{A scalar or vector of parameters used by the specific algorithm.
+\item{parameters}{A scalar or vector of paramters used by the specific algorithm.
 There are no optional parameters for the "LINEAR" method, "KDTREE" supports  
 optional parameters for the maximum number of points to store in a leaf node
 and the maximum value for the quadratic form in the normal kernel, ignoring
@@ -66,7 +72,7 @@ x <- matrix(runif(20),10,2)
 classification <- meanShift(x,x)
 
 x <- matrix(runif(20),10,2)
-classification <- meanShift(x,x, 
+classification <- meanShift(x, 
 algorithm="KDTREE", 
 nNeighbor=8, 
 parameters=c(5,7.1) )
@@ -79,4 +85,3 @@ Fukunaga, K., & Hostetler, L. (1975). \emph{The estimation of the gradient of a 
 
 Lisic, J. (2015). Parcel Level Agricultural Land Cover Prediction (Doctoral dissertation, George Mason University).
 }
-
