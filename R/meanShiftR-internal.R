@@ -1,5 +1,5 @@
 .algorithmEnum <- function( param ) {
-  
+  param <- toupper(param) 
   if( param == "LINEAR" )    return( 0 );
   if( param == "KDTREE" )    return( 1 );
   #if( param == "DUALTREE" )  return( 2 );
@@ -11,6 +11,7 @@
 }
 
 .kernelEnum <- function( param ) {
+  param <- toupper(param) 
   if( param == "NORMAL" )       return(0);
   if( param == "EPANECHNIKOV")  return(1);
   if( param == "BIWEIGHT")      return(2);
