@@ -2,4 +2,4 @@
 
 export(knn_meanShift)
 export(meanShift)
-useDynLib(meanShiftR)
+useDynLib(meanShiftR, .registration = TRUE)

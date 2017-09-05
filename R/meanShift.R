@@ -15,8 +15,7 @@
 #'   searches.  Currently, only "LINEAR" and "KDTREE" methods are supported.
 #' @param kernelType A string indicating the kernel associated with the kernel 
 #'   density estimate that the mean shift is optimizing over.  The possible
-#'   kernels are NORMAL, EPANECHNIKOV, BIWEIGHT, TRIWEIGHT, and TRICUBE. The default
-#'   is NORMAL.
+#'   kernels are NORMAL, EPANECHNIKOV, and BIWEIGHT; the default is NORMAL.
 #' @param bandwidth A vector of length equal to the number of columns in the 
 #'   queryData matrix, or length one when queryData is a vector.  This value will be 
 #'   used in the kernel density estimate for steepest ascent classification.  The 

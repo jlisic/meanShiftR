@@ -644,7 +644,6 @@ void R_meanShift(
     
     if( *algorithmEnumPtr == 0 ) {
       if( *kernelEnumPtr == 0 ) {
-        Rprintf("normalKernel\n");
         normalKernelNewton(
           query,      
           train,      
@@ -658,7 +657,6 @@ void R_meanShift(
         ); 
       }
       else if( *kernelEnumPtr == 1 ) {
-        Rprintf("EpanechnikovKernel\n");
         epanechnikov_Kernel(
           query,        
           train,        
@@ -671,7 +669,6 @@ void R_meanShift(
         );
       } 
       else if( *kernelEnumPtr == 2 ) {
-        Rprintf("biweightkernel\n");
         biweight_Kernel(
           query,        
           train,        
@@ -762,7 +759,6 @@ void R_meanShift(
         dist_den += dist_tmp;
       }
         
-      //if( i == 524 ) printf("%d:\td=%f num=%f, den=%f, cluster=%f, point=%f\n", (int)  j, dist_num/dist_den, dist_num, dist_den, queryNew[j*queryCol], query[i*queryCol]);
   
       if( dist_num / dist_den < min_dist ) {
         min_dist = dist_num / dist_den;
