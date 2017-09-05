@@ -24,7 +24,7 @@
 #' @examples 
 #' x <- matrix(runif(20),10,2)
 #' neighbors <- knn_meanShift(c(0,0),x)
-#' @useDynLib meanShiftR
+#' @useDynLib meanShiftR, .registration = TRUE
 #' @export
 knn_meanShift <-
 function(

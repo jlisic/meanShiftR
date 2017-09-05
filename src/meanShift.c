@@ -11,11 +11,11 @@
 #include "Rinternals.h"
 #include "Rmath.h"
 #include "kdtree.h"
+#include "meanshift.h"
 
 #if defined _OPENMP
   #include <omp.h>
 #endif
-
 
 
 

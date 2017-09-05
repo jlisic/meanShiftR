@@ -9,9 +9,9 @@ Package: meanShiftR
 
 Type: Package
 
-Version: 0.50 
+Version: 0.51 
 
-Date: 2016-08-28
+Date: 2017-09-04
 
 Author and Creator:
     Jonathan Lisic, jlisic at gmail.com 
@@ -19,8 +19,8 @@ Author and Creator:
 Maintainer: Jonathan Lisic <jlisic at gmail.com>
 
 Description: Performs mean shift classification using linear and 
-  k-d tree based nearest neighbor implementations for the Gaussian
-  kernel. 
+  k-d tree based nearest neighbor implementations for the Gaussian,
+  Epanechnikov, and biweight product kernels. 
 
 Depends: R (>= 3.1.0)
 

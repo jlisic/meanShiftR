@@ -54,7 +54,7 @@
 #' nNeighbor=8, 
 #' parameters=c(5,7.1) )
 #'
-#' @useDynLib meanShiftR
+#' @useDynLib meanShiftR, .registration = TRUE
 #' @export
 #'
 #' @references

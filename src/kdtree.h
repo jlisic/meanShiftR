@@ -111,4 +111,18 @@ void find_knn(
   ); 
 
 
+void R_knn( 
+  double * queryPoints,  // point to query for
+  double * x,           // data to reference for the query
+  int * xnrowPtr,
+  int * nrowPtr,        // number of rows
+  int * ncolPtr,        // number of columns
+  double * kDist,       // distance vector
+  int * indexInt,       // length of index
+  int * kPtr,           // number of nearest neighbors
+  double * weight,
+  int * leafSizePtr,     // leaf size
+  double * maxDist
+ ); 
+
 #endif
