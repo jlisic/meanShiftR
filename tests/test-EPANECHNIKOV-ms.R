@@ -87,7 +87,7 @@ iterations <-1
 
 
 ## run mean shift
-ms_result <- meanShift( x,x,kernelType="EPANECHNIKOV", bandwidth=bandwidth, iterations=iterations)
+ms_result <- meanShift( x,x,kernelType="ePANECHNIKOV", bandwidth=bandwidth, iterations=iterations)
 
 
 ## run test
