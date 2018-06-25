@@ -98,7 +98,8 @@ function(
 
   # allocate space for the return vector for number of neighbors
   neighbors = rep(0,queryRow)
-  distances = rep(0,queryRow*nNeighbors)
+
+#  distances = rep(0,queryRow*nNeighbors)
 
   # iterations check
   if( iterations < 1 ) stop("Error: iterations are not at least one.") 

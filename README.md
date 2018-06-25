@@ -9,9 +9,7 @@ Package: meanShiftR
 
 Type: Package
 
-Version: 0.51 
-
-Date: 2017-09-04
+Version: 0.52 
 
 Author and Creator:
     Jonathan Lisic, jlisic at gmail.com 
