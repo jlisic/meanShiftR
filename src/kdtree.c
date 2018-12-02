@@ -356,7 +356,21 @@ void find_knn(
     return;
   }
    
-    
+  // as we iterate through the tree we calculate the distance between the current split element and the query point 
+  //       x_1
+  //        |
+  //        |    . y_1
+  //        |
+  //        |
+  //        |
+  //
+  //       
+  //        |   y_2 
+  //        |    .
+  //   -----+----- x_2
+  //        |
+  //        |
+  //
   distMin = (queryPoint[c->dim] - c->split);
   distMin *= distMin * weight[c->dim];
   if( distMin < medianDist ) medianDist = distMin;

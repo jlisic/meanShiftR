@@ -9,7 +9,7 @@ Package: meanShiftR
 
 Type: Package
 
-Version: 0.51 
+Version: 0.52
 
 Date: 2017-09-04
 

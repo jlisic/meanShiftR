@@ -5,7 +5,7 @@ library(LPCM)
 set.seed(100)
 
 # set the number of iterations to test
-iter <- 20
+iter <- 1000
 
 # set the number of points to simulate
 n <- 20 

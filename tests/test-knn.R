@@ -8,10 +8,10 @@ i <- 1698
 
 set.seed(i)
 
-n <- 2000
+n <- 2
 m <- 2000 
 p <- 3 
-k <- 200 
+k <- 3 
 
 x <- matrix(rnorm(p*n),ncol=p)
 y <- matrix(rnorm(p*m),ncol=p)

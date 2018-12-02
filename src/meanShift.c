@@ -519,6 +519,8 @@ void R_meanShift(
   double epsilonCluster = *epsilonClusterPtr; 
 
   double dist_den, dist_num, dist_tmp; // variables for terminal distance calculation
+  size_t terminate = 0; // variable that allows for early termination when all
+                        // points have hit there target.
 
   size_t i,j,k; // index 
 
@@ -587,6 +589,7 @@ void R_meanShift(
     
   /* begin iteration */
   for( i =0; i < iterations; i++) {
+    //printf("iter = %d %d \n", (int) i, (int) iterations);
     
     #pragma omp for 
     for( j = 0; j < queryRow*queryCol; j++) queryNew[j] = query[j];
@@ -685,24 +688,51 @@ void R_meanShift(
     // K-d Tree
     // *********************************** 
     else if( *algorithmEnumPtr == 1 ) {
-      normalKernelNewton_preDist(
-        query,      
-        train,      
-        neighbors,    
-        queryRow,
-        trainRow,
-        queryCol,
-        nNeighbors,
-        bandwidth2,    
-        distances,
-        alpha
-      ); 
+      if( *kernelEnumPtr == 1) { 
+        normalKernelNewton_preDist(
+          query,      
+          train,      
+          neighbors,    
+          queryRow,
+          trainRow,
+          queryCol,
+          nNeighbors,
+          bandwidth2,    
+          distances,
+          alpha
+        );
+      } else if( *kernelEnumPtr == 1) { 
+        epanechnikov_Kernel(
+          query,        
+          train,        
+          neighbors,     
+          queryRow,
+          trainRow,
+          queryCol,
+          nNeighbors,
+          bandwidth    
+        );
+      } else if( *kernelEnumPtr == 2) { 
+        biweight_Kernel(
+          query,        
+          train,        
+          neighbors,     
+          queryRow,
+          trainRow,
+          queryCol,
+          nNeighbors,
+          bandwidth    
+        );
+      } 
     }
     /**********************************************/
     /* 3. check terminal conditions */
     /**********************************************/
   
     for( j = 0; j < queryRow; j++ ) {
+      // don't bother comparing if it already has terminated
+      if(  neighbors[j*nNeighbors] == nNeighbors ) continue;
+
       dist_num = 0;
       dist_den = 0;
       for(k = 0; k < queryCol; k++ ) {
@@ -719,11 +749,15 @@ void R_meanShift(
   
       // set terminal condition
       // this needs to be updated with a mapping at some point in the future
-      if( dist_num / dist_den < epsilon ) 
+      if( dist_num / dist_den < epsilon ) { 
         neighbors[j*nNeighbors] = nNeighbors;
+        terminate++ ;
+      }
     }
-    
   
+    // early termination 
+    //printf("terminate %d\n", terminate); 
+    if( terminate == queryRow ) break; 
 
   /* end iteration */
   }
