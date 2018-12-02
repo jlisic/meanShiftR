@@ -14,16 +14,16 @@ Version: 0.53
 Date: 2018-12-02
 
 Author and Creator:
-    Jonathan Lisic, jlisic at gmail.com 
+Jonathan Lisic, jlisic at gmail.com 
 
-    Maintainer: Jonathan Lisic <jlisic at gmail.com>
+Maintainer: Jonathan Lisic <jlisic at gmail.com>
 
-    Description: Performs mean shift classification using linear and 
-      k-d tree based nearest neighbor implementations for the Gaussian,
-        Epanechnikov, and biweight product kernels. 
+Description: Performs mean shift classification using linear and 
+k-d tree based nearest neighbor implementations for the Gaussian,
+Epanechnikov, and biweight product kernels. 
 
-        Depends: R (>= 3.1.0)
+Depends: R (>= 3.1.0)
 
-        License: GPL (>= 2)
+License: GPL (>= 2)
 
-        RoxygenNote: 5.0.1
+RoxygenNote: 5.0.1
