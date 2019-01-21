@@ -25,13 +25,23 @@ static R_NativePrimitiveArgType R_meanShift_t[] = {
 };
 
 static R_NativePrimitiveArgType R_knn_t[] = {
-      REALSXP, REALSXP, INTSXP, INTSXP, INTSXP, REALSXP, INTSXP, INTSXP, 
-      REALSXP, INTSXP, REALSXP
+  REALSXP, // query points
+  REALSXP, // x
+  INTSXP,  // type
+  INTSXP,  // xnrowPtr
+  INTSXP,  // nrowPtr
+  INTSXP,  // ncolPtr
+  REALSXP, // kDist
+  INTSXP,  // indexInt
+  INTSXP,  // kPtr
+  REALSXP, // weight
+  INTSXP,  // leafSizePtr
+  REALSXP  // maxDist
 };
 
 static const R_CMethodDef cMethods[] = {
      {"R_meanShift", (DL_FUNC) &R_meanShift, 14, R_meanShift_t},
-     {"R_knn", (DL_FUNC) &R_knn, 14, R_knn_t},
+     {"R_knn", (DL_FUNC) &R_knn, 12, R_knn_t},
         {NULL, NULL, 0, NULL}
 };
 

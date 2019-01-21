@@ -46,6 +46,7 @@ rootNodePtr createTree( size_t K, size_t leafSize, size_t n, double * data ) {
   y->root = NULL;
   y->data = data;
   y->n = n;
+  y->type = NULL;
 
   return(y);
 }
@@ -59,6 +60,7 @@ void deleteTree( rootNodePtr r ) {
   if(r->pointerIndex != NULL) free( r->pointerIndex ); 
   r->pointerIndex = NULL;
   r->data = NULL;
+  r->type = NULL;
     
   deleteNode( r, r->root ); 
 
@@ -248,6 +250,90 @@ void printTree( rootNodePtr r, nodePtr c ) {
 
 }
 
+// function to find the minimal Euclidian distance ( with handling for avoiding cat unpack)
+void getClosest2( 
+    rootNodePtr r, 
+    nodePtr c, 
+    size_t k,
+    double * queryPoint,
+    size_t * indexes,
+    double * dist, 
+    double * weight,
+    double * tieBreak 
+  ) {
+
+  size_t i,j,l,d;
+
+  size_t K = r->K;
+  double * x = r->data;            
+  double currentDist;
+  double tmp;
+
+  // iterate over all obs on the leaf 
+  for( i = 0; i < c->indexUsed; i++) {
+
+    // get first index 
+    j = c->index[i]; 
+
+//printf("  j = %d:  ", (int) j);
+
+    // calculate L2 distance
+    for( d=0, currentDist=0; d < K; d++) { 
+      if( r->type[d] == 1 ) {
+        tmp = x[j * K + d] - queryPoint[d];
+        tmp *= tmp * weight[d];
+      } else {
+        if( x[j * K + d] != queryPoint[d] ) {
+          tmp = weight[d];
+        }
+        else {
+          tmp = 0;
+        }
+      }
+//printf(" %f, ", tmp);
+      currentDist += tmp;
+    }
+
+//printf(" tot= %f\n", currentDist);
+
+    
+    // if smaller than prior index update 
+    // dist is ordered from biggest dist to smallest
+    if( currentDist < dist[0] ) {
+
+      for(l=1;l<k;l++) { 
+        // if the distance is bigger than current dist we will shift things down.
+        if( currentDist < dist[l] ) {
+          dist[l-1] = dist[l];
+          indexes[l-1] = indexes[l];
+        }
+        else break;
+      }
+   
+      dist[l-1] = currentDist;
+      indexes[l-1] = j;
+          
+    } 
+    /* 
+    // if it is a tie
+    else if( currentDist == *dist ) {
+    
+      // generate a deviate on (0,1) and pick the biggest
+      // each obs has the same prob of being largest due
+      // to exchangability  
+      newTieBreak = RUNIF;
+
+      if( *tieBreak < 0 ) *tieBreak = RUNIF;  // if no tie was set
+
+      if( newTieBreak > *tieBreak) *tieBreak = newTieBreak;
+      closestIndex = i;
+    }
+    */
+  }
+
+  return;
+}
+
 
 
 // function to find the minimal Euclidian distance 
@@ -323,6 +409,107 @@ void getClosest(
 
 
 
+// find the k nearest neighbors with type checks
+void find_knn2( 
+    rootNodePtr r, 
+    nodePtr c, 
+    size_t k,            // number of items to find
+    double * queryPoint, // location of point in support 
+    size_t * indexes,    // k indexes
+    double * dist,       // distances
+    double medianDist,
+    double * weight,
+    double * tieBreak   // tie break
+  ) {
+
+  double distMin;
+  
+  // return if c == NULL 
+  if( c == NULL ) {
+    PRINTF(" not good\n");
+    return;
+  }
+
+  // is there anything here ? 
+  // if there is we get the closest item 
+  if( c->index != NULL ) { 
+    getClosest2(r,c,k,queryPoint,indexes,dist,weight,tieBreak); 
+    // debug macros 
+    KNNNODEDEBUG KNNLISTDEBUG
+    return;
+  }
+   
+  // as we iterate through the tree we calculate the distance between the current split element and the query point 
+  //       x_1
+  //        |
+  //        |    . y_1
+  //        |
+  //        |
+  //        |
+  //
+  //       
+  //        |   y_2 
+  //        |    .
+  //   -----+----- x_2
+  //        |
+  //        |
+  //
+
+  // this is a dist calculation
+  if( r->type[ c->dim ] == 1 ) {
+    distMin = (queryPoint[c->dim] - c->split);
+    distMin *= distMin * weight[c->dim];
+  } else {
+    if( queryPoint[c->dim] != c->split ) {
+      distMin = weight[c->dim];
+    } else {
+      distMin = 0;
+    }
+  }
+
+
+  if( distMin < medianDist ) medianDist = distMin;
+
+
+  // first check if the query point is less than split 
+  if( queryPoint[c->dim] <= c->split ) {
+    
+      if(medianDist < *dist) {
+        KNNLDEBUG find_knn2( r, c->left, k, queryPoint, indexes, dist, medianDist, weight, tieBreak );  
+      } else 
+      {
+      //  printf("%f > %f, dim=%d, query =%f, split=%f FAIL!\n", distMin, *dist, (int) c->dim, queryPoint[c->dim], c->split ); 
+      } 
+    
+      // now check if there is a point in the split that can be close 
+      if(medianDist < *dist) {
+        KNNRDEBUG find_knn2( r, c->right, k, queryPoint, indexes, dist, medianDist, weight, tieBreak ); 
+      } 
+      else {
+      //  printf("%f > %f, FAIL!\n", distMin, *dist); 
+      } 
+      
+  } else { // the query point is greater than the split   
+
+      if(medianDist < *dist) {
+        KNNRDEBUG find_knn2( r, c->right, k, queryPoint, indexes, dist, medianDist, weight, tieBreak );  
+      } 
+      else {
+      //  printf("%f > %f, FAIL!\n", distMin, *dist); 
+      } 
+      
+      // now check if there is a point in the split that can be close 
+      if(medianDist < *dist) {
+        KNNLDEBUG find_knn2( r, c->left, k, queryPoint, indexes, dist, medianDist, weight, tieBreak );  
+      } 
+      else {
+      //  printf("%f > %f, FAIL!\n", distMin, *dist); 
+      } 
+  }
+
+  return;
+}
+
 
 
 
@@ -371,8 +558,12 @@ void find_knn(
   //        |
   //        |
   //
+
+  // this is a dist calculation
   distMin = (queryPoint[c->dim] - c->split);
   distMin *= distMin * weight[c->dim];
+
+
   if( distMin < medianDist ) medianDist = distMin;
 
 
@@ -599,6 +790,7 @@ int main () {
 void R_knn( 
   double * queryPoints,  // point to query for
   double * x,           // data to reference for the query
+  int * type, // new
   int * xnrowPtr,
   int * nrowPtr,        // number of rows
   int * ncolPtr,        // number of columns
@@ -612,6 +804,7 @@ void R_knn(
 
   size_t i;
   size_t j;
+  size_t typeEval;
   double * dist;
   double * queryPoint; 
   double tieBreak = -1;
@@ -627,6 +820,15 @@ void R_knn(
   rootNodePtr myTree = NULL;
 
   myTree = createTree(ncol, leafSize, nrow, x);
+
+  // add on type
+  myTree->type = type;
+
+  // speed things up by checking if there is a need to evaluate any categorical data
+
+  for( d=0; d < ncol; d++) {
+    if( myTree->type[d] == 1 ) typeEval++;
+  }
 
   // index for k-d tree
   // this will get freed
@@ -644,6 +846,9 @@ void R_knn(
     index        // pointer to obs indexes 
   ); 
 
+
+  if( typeEval == ncol ) {
+
   #pragma omp parallel private(i,j,kIndex,tieBreak,queryPoint,dist)
   {
 
@@ -651,18 +856,50 @@ void R_knn(
 
     #pragma omp for
     for(i=0; i < xnrow; i++) { 
+
+//      printf("i = %d\n", (int) i );
       for(j = 0; j < k; j++) kIndex[j] = myTree->n;
   
       queryPoint = queryPoints + i*ncol; 
       dist = kDist + i*k; 
       // query tree
       find_knn( myTree, myTree->root, k, queryPoint, kIndex, dist, *maxDist, weight, &tieBreak);
-    
+
+
       // copy data over 
       for( j = 0; j < k; j++) indexInt[i*k +j] = 1 + (int) kIndex[j]; 
     }
 
     free(kIndex);
+  }
+
+  } else {
+
+  #pragma omp parallel private(i,j,kIndex,tieBreak,queryPoint,dist)
+  {
+
+    kIndex = calloc(k, sizeof(size_t));
+
+    #pragma omp for
+    for(i=0; i < xnrow; i++) { 
+
+//      printf("i = %d\n", (int) i );
+      for(j = 0; j < k; j++) kIndex[j] = myTree->n;
+  
+      queryPoint = queryPoints + i*ncol; 
+      dist = kDist + i*k; 
+      // query tree
+      find_knn2( myTree, myTree->root, k, queryPoint, kIndex, dist, *maxDist, weight, &tieBreak);
+
+
+      // copy data over 
+      for( j = 0; j < k; j++) indexInt[i*k +j] = 1 + (int) kIndex[j]; 
+    }
+
+    free(kIndex);
+  }
+
+
   }
 
   // clean up

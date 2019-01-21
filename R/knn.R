@@ -11,6 +11,8 @@
 #' @param weight A scalar or vector of length equal to the number of columns of 
 #'   \code{trainData}.   This value is used as the diagonal elements for the 
 #'   inverse covariance matrix of the Mahalanobis distance.
+#' @param type allows the user to specify if the value provided is to be treated
+#'   as categorical without requiring one-hot encoding.
 #' @param leafSize A scalar used to specify the number of points to store in the 
 #'   leaf nodes. 
 #' @param maxDist A vector specifying the maximum value of the Mahalanobis that
@@ -32,6 +34,7 @@ function(
   trainData,
   k=min(5,NROW(trainData)),
   weight,
+  type,
   leafSize=40,
   maxDist=Inf
 ) {
@@ -41,6 +44,9 @@ function(
   pointsRow <- NROW(points)
   trainRow <- NROW(trainData)
   trainCol <- NCOL(trainData) 
+
+  if( missing(type) ) type <- rep(1,trainCol)
+  if( length(type) != trainCol ) stop("Error: type length is not equal to the number of columns.")
 
   
   # check if k is set, note that if 
@@ -57,21 +63,22 @@ function(
   r.result <- .C("R_knn",
     as.double(  t(points) ),             # 1 data we query
     as.double(  t(trainData) ),          # 2 set to search for nn 
-    as.integer( pointsRow ),             # 3 number of rows of points 
-    as.integer( trainRow ),              # 4 number of rows of data to search 
-    as.integer( trainCol ),              # 5 number of columns of data to search 
-    as.double( distances ),              # 6 number of neighbors
-    as.integer( neighbors ),             # 7 k neighbors 
-    as.integer(  k ),                    # 8 k 
-    as.double( weight ),                 # 9 weights for dist
-    as.integer( leafSize ),              # 10 number of nodes in the leaf 
-    as.double(maxDist),                  # 11 max acceptable distance
+    as.integer( type ),                  # 3 type for distance calculation
+    as.integer( pointsRow ),             # 4 number of rows of points 
+    as.integer( trainRow ),              # 5 number of rows of data to search 
+    as.integer( trainCol ),              # 6 number of columns of data to search 
+    as.double( distances ),              # 7 number of neighbors
+    as.integer( neighbors ),             # 8 k neighbors 
+    as.integer(  k ),                    # 9 k 
+    as.double( weight ),                 # 10 weights for dist
+    as.integer( leafSize ),              # 11 number of nodes in the leaf 
+    as.double(maxDist),                  # 12 max acceptable distance
     NAOK=T
   )
 
   return( list( 
-               neighbors=matrix(r.result[[7]],ncol=k,byrow=T) , 
-               distances=matrix(r.result[[6]],ncol=k,byrow=T) 
+               neighbors=matrix(r.result[[8]],ncol=k,byrow=T) , 
+               distances=matrix(r.result[[7]],ncol=k,byrow=T) 
                ) )
   
 }

@@ -35,6 +35,7 @@ struct rootNode {
   size_t leafSize;          /* max number of elements on each leaf */
   size_t n;                 /* number of rows in x */ 
   size_t ** pointerIndex;   /* pointer index to allow easy changing of returned values */
+  int * type;                 /* a pointer to data types */
   double * data;            /* pointer to x */
   nodePtr root;             /* root node pointer */
 };
@@ -86,6 +87,18 @@ double splitData(
     ); 
 
 // function to get the closest neighbor, with tie handling 
+void getClosest2( 
+    rootNodePtr r, 
+    nodePtr c, 
+    size_t k,
+    double * queryPoint,
+    size_t * indexes,
+    double * dist, 
+    double * weight,
+    double * tieBreak 
+  );
+
+// function to get the closest neighbor, with tie handling 
 void getClosest( 
     rootNodePtr r, 
     nodePtr c, 
@@ -110,10 +123,25 @@ void find_knn(
     double * tieBreak    // tie break
   ); 
 
+// find the k nearest neighbors 
+void find_knn2( 
+    rootNodePtr r, 
+    nodePtr c, 
+    size_t k,            // number of items to find
+    double * queryPoint, // location of point in support 
+    size_t * indexes,    // k indexes
+    double * dist,       // distances
+    double medianDist,
+    double * weight,
+    double * tieBreak    // tie break
+  ); 
+
+
 
 void R_knn( 
   double * queryPoints,  // point to query for
   double * x,           // data to reference for the query
+  int * type,
   int * xnrowPtr,
   int * nrowPtr,        // number of rows
   int * ncolPtr,        // number of columns
