@@ -804,7 +804,8 @@ void R_knn(
 
   size_t i;
   size_t j;
-  size_t typeEval;
+  size_t typeEval=0;
+  size_t d;
   double * dist;
   double * queryPoint; 
   double tieBreak = -1;
