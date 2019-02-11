@@ -24,25 +24,48 @@ static R_NativePrimitiveArgType R_meanShift_t[] = {
       REALSXP, REALSXP, REALSXP, REALSXP, INTSXP, INTSXP
 };
 
+static R_NativePrimitiveArgType R_knn_sparse_t[] = {
+  REALSXP, // 1 query points
+  INTSXP,  // 2 query index 
+  INTSXP,  // 3 query pointers 
+  INTSXP,  // 4 query index n 
+  INTSXP,  // 5 query pointers n 
+  REALSXP, // 6 x
+  INTSXP,  // 7 x index 
+  INTSXP,  // 8 x pointers 
+  INTSXP,  // 9 x index n 
+  INTSXP,  // 10 x pointers n 
+  INTSXP,  // 11 xnrowPtr
+  INTSXP,  // 12 nrowPtr
+  INTSXP,  // 13 ncolPtr
+  REALSXP, // 14 kDist
+  INTSXP,  // 15 indexInt
+  INTSXP,  // 16 kPtr
+  REALSXP, // 17 weight
+  INTSXP,  // 18 leafSizePtr
+  REALSXP, // 19 maxDist
+  INTSXP   // 20 sparse
+};
+
 static R_NativePrimitiveArgType R_knn_t[] = {
-  REALSXP, // query points
-  REALSXP, // x
-  INTSXP,  // type
-  INTSXP,  // xnrowPtr
-  INTSXP,  // nrowPtr
-  INTSXP,  // ncolPtr
-  REALSXP, // kDist
-  INTSXP,  // indexInt
-  INTSXP,  // kPtr
-  REALSXP, // weight
-  INTSXP,  // leafSizePtr
-  REALSXP  // maxDist
+  REALSXP, // 1 query points
+  REALSXP, // 2 x
+  INTSXP,  // 3 xnrowPtr
+  INTSXP,  // 4 nrowPtr
+  INTSXP,  // 5 ncolPtr
+  REALSXP, // 6 kDist
+  INTSXP,  // 7 indexInt
+  INTSXP,  // 8 kPtr
+  REALSXP, // 9 weight
+  INTSXP,  // 10 leafSizePtr
+  REALSXP  // 11 maxDist
 };
 
 static const R_CMethodDef cMethods[] = {
      {"R_meanShift", (DL_FUNC) &R_meanShift, 14, R_meanShift_t},
-     {"R_knn", (DL_FUNC) &R_knn, 12, R_knn_t},
-        {NULL, NULL, 0, NULL}
+     {"R_knn", (DL_FUNC) &R_knn, 11, R_knn_t},
+     {"R_knn_sparse", (DL_FUNC) &R_knn_sparse, 20, R_knn_sparse_t},
+     {NULL, NULL, 0, NULL}
 };
 
 void R_init_myLib(DllInfo *info)

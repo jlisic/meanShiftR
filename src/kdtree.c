@@ -46,7 +46,19 @@ rootNodePtr createTree( size_t K, size_t leafSize, size_t n, double * data ) {
   y->root = NULL;
   y->data = data;
   y->n = n;
-  y->type = NULL;
+  
+  y->sparse_i = NULL;
+  y->sparse_p = NULL;
+  y->sparse_i_n = NULL;
+  y->sparse_p_n = NULL;
+
+  y->query_data = NULL;
+  y->query_sparse_i = NULL;
+  y->query_sparse_p = NULL;
+  y->query_sparse_i_n = NULL;
+  y->query_sparse_p_n = NULL;
+
+  y->transpose = 0;
 
   return(y);
 }
@@ -60,7 +72,17 @@ void deleteTree( rootNodePtr r ) {
   if(r->pointerIndex != NULL) free( r->pointerIndex ); 
   r->pointerIndex = NULL;
   r->data = NULL;
-  r->type = NULL;
+  
+  r->sparse_i = NULL;
+  r->sparse_p = NULL;
+  r->sparse_i_n = NULL;
+  r->sparse_p_n = NULL;
+  
+  r->query_data = NULL;
+  r->query_sparse_i = NULL;
+  r->query_sparse_p = NULL;
+  r->query_sparse_i_n = NULL;
+  r->query_sparse_p_n = NULL;
     
   deleteNode( r, r->root ); 
 
@@ -69,7 +91,114 @@ void deleteTree( rootNodePtr r ) {
 }
 
 
+// get the value (double) of a row and column in a sparse matrix 
+double sparse_point(
+    size_t i, //row
+    size_t j, //col
+    int * index,  // sparse matrix index
+    int * pointer,  // sparse matrix pointer
+    double * x, // sparse matrix value
+    size_t transpose //transpose indicator
+    ) {
 
+  size_t d;
+
+  if( transpose ) {
+
+    // get row
+    for( d =pointer[i];  d < pointer[i+1]; d++ ) {
+      if( index[d] == j) {
+         return(x[d]);
+      }
+      if( index[d] > j ) return 0;
+    }
+
+  } else {
+
+    for( d =pointer[j];  d < pointer[j+1]; d++ ) {
+      if( index[d] == i) {
+         return(x[d]);
+      }
+      if( index[d] > i ) return 0;
+    }
+
+  }
+
+  return 0;
+}
+
+// get the value (double) of a row and column in a sparse matrix 
+double sparse_l2(
+    size_t i,       //row
+    int * i_index,    // sparse matrix index
+    int * i_pointer,  // sparse matrix pointer
+    double * i_x,     // sparse matrix value
+    size_t j,      //col
+    int * j_index,    // sparse matrix index
+    int * j_pointer,  // sparse matrix pointer
+    double * j_x,     // sparse matrix value
+    double * weight,  // weight
+    size_t p,     // NCOL
+    double * i_vector,
+    double * j_vector,
+    double * w_vector 
+    ) { 
+
+  size_t d=0;
+
+  size_t i_col = (int) i_pointer[i];  
+  size_t i_col_max = (int) i_pointer[i+1];  
+  
+  size_t j_col = (int) j_pointer[j];  
+  size_t j_col_max = (int) j_pointer[j+1];  
+
+  double dist = 0;
+  double tmp;
+
+
+  for( d = 0; d < p; d++) {
+
+    // update vector and increment
+    if( i_col < i_col_max) {
+      if( i_index[i_col] == d ) {
+        i_vector[d] = i_x[i_col];
+        i_col++;
+      } else {
+        i_vector[d] = 0;
+      }
+    } else {
+      i_vector[d] = 0;
+    }
+    
+    // update vector and increment
+    if( j_col < j_col_max) {
+      if( j_index[j_col] == d ) {
+        j_vector[d] = j_x[j_col];
+        j_col++;
+      } else {
+        j_vector[d] = 0;
+      }
+    } else {
+      j_vector[d] = 0;
+    }
+    
+    // record weight
+    w_vector[d] = weight[d];
+
+  }
+
+  // setup for future simd
+  for(d=0; d < p; d++) {
+
+    //printf( "%d: %4.2f %4.2f\n", (int) d, i_vector[d], j_vector[d]) ; 
+    tmp = i_vector[d] - j_vector[d]; 
+    tmp *= tmp * w_vector[d];
+    
+    dist += tmp; 
+  } 
+
+  return dist;
+}
 
 // add an element to the tree 
 nodePtr buildIndex( 
@@ -124,6 +253,67 @@ nodePtr buildIndex(
   // move current contents to new children
   c->left  = buildIndex( r, (dim+1) % K, indexLeftSize , indexLeftPtr);
   c->right = buildIndex( r, (dim+1) % K, indexRightSize, indexRightPtr);
+
+  return c;
+}
+
+
+
+
+
+// add an element to the tree 
+nodePtr buildIndex_sparse( 
+    rootNodePtr r,      // root pointer 
+    size_t dim,         // current dim
+    size_t m,           // current length of obs
+    size_t * indexPtr   // pointer to obs indexes 
+  ) {
+ 
+  size_t i,K; 
+  size_t * indexLeftPtr = NULL;
+  size_t * indexRightPtr = NULL;
+  size_t indexLeftSize;
+  size_t indexRightSize;
+
+  nodePtr c = createNode(r);
+  c->indexUsed = m;
+  c->index = indexPtr;
+  c->dim = dim;
+
+  K = r->K;
+   
+  // do we have too many points? 
+  if( m <= r->leafSize ) {
+
+    // save the final pointer locations 
+    for( i = 0; i < m; i++) 
+      r->pointerIndex[ indexPtr[i] ] = &( indexPtr[i] );
+
+    return c;
+  } 
+
+  // if we are here we have too many points 
+  // create children
+  // figure out our new dim
+  // split data and give to children 
+  c-> split = splitData_sparse( 
+    r,
+    c->index, 
+    &indexLeftPtr,
+    &indexRightPtr,
+    &indexLeftSize,
+    &indexRightSize,
+    m, 
+    K,
+    dim
+    ); 
+
+  free(c->index);
+  c->index = NULL; 
+
+  // move current contents to new children
+  c->left  = buildIndex_sparse( r, (dim+1) % K, indexLeftSize , indexLeftPtr);
+  c->right = buildIndex_sparse( r, (dim+1) % K, indexRightSize, indexRightPtr);
 
   return c;
 }
@@ -206,6 +396,74 @@ double splitData(
   splitIndex = n/2;
   
   split = quantile_quickSelectIndex( xPtr, splitIndex, n ); 
+ 
+  /* 
+  printf( "split: %4.2f\n", split );
+  for( i = 0; i < n; i++) {
+    printf("%4.2f ", x[i] );
+  }
+  printf("\n");
+  */
+    
+  *indexLeftSize  = n / 2;
+  *indexRightSize = n - *indexLeftSize;
+  
+  *indexLeft  = calloc(*indexLeftSize , sizeof(size_t) );
+  *indexRight = calloc(*indexRightSize , sizeof(size_t) );
+    
+  // now let's have some fun with pointer math 
+  for( i = 0; i < *indexLeftSize ; i++) (*indexLeft)[i]  = index[xPtr[i] - x];
+  for( i = 0; i < *indexRightSize; i++) (*indexRight)[i] = index[ xPtr[*indexLeftSize + i] -x ];
+  
+  free(xPtr);
+  free(x); 
+
+  return split;
+}
+
+
+
+
+// split and create children
+double splitData_sparse( 
+    rootNodePtr r, // was y (r-data) in the non-sparse version 
+    size_t * index, 
+    size_t ** indexLeft,
+    size_t ** indexRight,
+    size_t * indexLeftSize,
+    size_t * indexRightSize,
+    size_t n, 
+    size_t p,   //number of columns
+    size_t dim  //dim to use
+    ) {
+
+  double split;
+  size_t splitIndex,i;
+
+  // get the median 
+  double * x =  calloc( n, sizeof(double) );        //allocate some temporary space for finding the median
+  double ** xPtr =  calloc( n, sizeof( double * ) ); //allocate some temporary space for finding the median
+  
+  // create input for qsort
+  for( i = 0; i < n; i++) {
+    x[i] = sparse_point( index[i],dim, r->sparse_i, r->sparse_p, r->data, r->transpose); 
+    xPtr[i] = &(x[i]);
+  }
+
+
+
+  // use quick sort to find the median 
+  // get split
+  splitIndex = n/2;
+  
+  split = quantile_quickSelectIndex( xPtr, splitIndex, n ); 
+  /*  
+  printf( "split: %4.2f\n", split );
+  for( i = 0; i < n; i++) {
+    printf("%4.2f ", x[i] );
+  }
+  printf("\n");
+  */
     
   *indexLeftSize  = n / 2;
   *indexRightSize = n - *indexLeftSize;
@@ -250,24 +508,30 @@ void printTree( rootNodePtr r, nodePtr c ) {
 
 }
 
-// function to find the minimal Euclidian distance ( with handling for avoiding cat unpack)
-void getClosest2( 
+
+
+// function to find the minimal Euclidian distance 
+void getClosest_sparse( 
     rootNodePtr r, 
     nodePtr c, 
     size_t k,
-    double * queryPoint,
+    size_t queryPoint_index,
     size_t * indexes,
     double * dist, 
     double * weight,
-    double * tieBreak 
+    double * tieBreak
   ) {
 
   size_t i,j,l,d;
 
   size_t K = r->K;
-  double * x = r->data;            
   double currentDist;
   double tmp;
+
+  double * query_vector = (double *) malloc(sizeof(double) * K);
+  double * j_vector =     (double *) malloc(sizeof(double) * K);
+  double * weight_vector = (double *) malloc(sizeof(double) * K);
+
 
   // iterate over all obs on the leaf 
   for( i = 0; i < c->indexUsed; i++) {
@@ -275,27 +539,25 @@ void getClosest2(
     // get first index 
     j = c->index[i]; 
 
-//printf("  j = %d:  ", (int) j);
 
     // calculate L2 distance
-    for( d=0, currentDist=0; d < K; d++) { 
-      if( r->type[d] == 1 ) {
-        tmp = x[j * K + d] - queryPoint[d];
+    if( r->transpose ) {
+      currentDist = sparse_l2(queryPoint_index, r->query_sparse_i, r->query_sparse_p, r->query_data,
+                j,                r->sparse_i,       r->sparse_p,       r->data,
+                weight, K,
+                query_vector,
+                j_vector,
+                weight_vector
+                ); 
+    } else {
+      for( d=0, currentDist=0; d < K; d++) { 
+        tmp = 
+          sparse_point( queryPoint_index,d, r->query_sparse_i, r->query_sparse_p, r->query_data,r->transpose ) - 
+          sparse_point( j,d, r->sparse_i, r->sparse_p, r->data, r->transpose ); 
         tmp *= tmp * weight[d];
-      } else {
-        if( x[j * K + d] != queryPoint[d] ) {
-          tmp = weight[d];
-        }
-        else {
-          tmp = 0;
-        }
+        currentDist += tmp;
       }
-//printf(" %f, ", tmp);
-      currentDist += tmp;
     }
-
-//printf(" tot= %f\n", currentDist);
-
     
     // if smaller than prior index update 
     // dist is ordered from biggest dist to smallest
@@ -314,25 +576,15 @@ void getClosest2(
       indexes[l-1] = j;
           
     } 
-    /* 
-    // if it is a tie
-    else if( currentDist == *dist ) {
-    
-      // generate a deviate on (0,1) and pick the biggest
-      // each obs has the same prob of being largest due
-      // to exchangability  
-      newTieBreak = RUNIF;
-
-      if( *tieBreak < 0 ) *tieBreak = RUNIF;  // if no tie was set
-
-      if( newTieBreak > *tieBreak) *tieBreak = newTieBreak;
-      closestIndex = i;
-    }
-    */
   }
+  
+  free(query_vector);
+  free(j_vector);
+  free(weight_vector);
 
   return;
 }
+
 
 
 
@@ -410,11 +662,11 @@ void getClosest(
 
 
 // find the k nearest neighbors with type checks
-void find_knn2( 
+void find_knn_sparse( 
     rootNodePtr r, 
     nodePtr c, 
     size_t k,            // number of items to find
-    double * queryPoint, // location of point in support 
+    size_t queryPoint_index, // index of point in support 
     size_t * indexes,    // k indexes
     double * dist,       // distances
     double medianDist,
@@ -423,6 +675,7 @@ void find_knn2(
   ) {
 
   double distMin;
+  double queryPoint_value;
   
   // return if c == NULL 
   if( c == NULL ) {
@@ -433,9 +686,7 @@ void find_knn2(
   // is there anything here ? 
   // if there is we get the closest item 
   if( c->index != NULL ) { 
-    getClosest2(r,c,k,queryPoint,indexes,dist,weight,tieBreak); 
-    // debug macros 
-    KNNNODEDEBUG KNNLISTDEBUG
+    getClosest_sparse(r,c,k,queryPoint_index,indexes,dist,weight,tieBreak); 
     return;
   }
    
@@ -456,26 +707,29 @@ void find_knn2(
   //
 
   // this is a dist calculation
-  if( r->type[ c->dim ] == 1 ) {
-    distMin = (queryPoint[c->dim] - c->split);
+  // double sparse_point(
+  //    size_t i,       //row
+  //    size_t j,       //col
+  //    int * index,    // sparse matrix index
+  //    int * pointer,  // sparse matrix pointer
+  //    double * x}     // sparse matrix value
+    queryPoint_value = sparse_point( queryPoint_index, c->dim, r->query_sparse_i, r->query_sparse_p, r->query_data,r->transpose ); 
+    distMin = (queryPoint_value - c->split);
     distMin *= distMin * weight[c->dim];
-  } else {
-    if( queryPoint[c->dim] != c->split ) {
-      distMin = weight[c->dim];
-    } else {
-      distMin = 0;
-    }
-  }
+ 
+    
+//    printf("dist=%4.2f\tquery_point[%d,%d]=%4.2f\tsplit=%4.2f\n",
+//        distMin,(int) queryPoint_index, (int) c->dim,queryPoint_value, c->split);
 
 
   if( distMin < medianDist ) medianDist = distMin;
 
 
   // first check if the query point is less than split 
-  if( queryPoint[c->dim] <= c->split ) {
+  if( queryPoint_value <= c->split ) {
     
       if(medianDist < *dist) {
-        KNNLDEBUG find_knn2( r, c->left, k, queryPoint, indexes, dist, medianDist, weight, tieBreak );  
+        KNNLDEBUG find_knn_sparse( r, c->left, k, queryPoint_index, indexes, dist, medianDist, weight, tieBreak);  
       } else 
       {
       //  printf("%f > %f, dim=%d, query =%f, split=%f FAIL!\n", distMin, *dist, (int) c->dim, queryPoint[c->dim], c->split ); 
@@ -483,7 +737,7 @@ void find_knn2(
     
       // now check if there is a point in the split that can be close 
       if(medianDist < *dist) {
-        KNNRDEBUG find_knn2( r, c->right, k, queryPoint, indexes, dist, medianDist, weight, tieBreak ); 
+        KNNRDEBUG find_knn_sparse( r, c->right, k, queryPoint_index, indexes, dist, medianDist, weight, tieBreak); 
       } 
       else {
       //  printf("%f > %f, FAIL!\n", distMin, *dist); 
@@ -492,7 +746,7 @@ void find_knn2(
   } else { // the query point is greater than the split   
 
       if(medianDist < *dist) {
-        KNNRDEBUG find_knn2( r, c->right, k, queryPoint, indexes, dist, medianDist, weight, tieBreak );  
+        KNNRDEBUG find_knn_sparse( r, c->right, k, queryPoint_index, indexes, dist, medianDist, weight, tieBreak);  
       } 
       else {
       //  printf("%f > %f, FAIL!\n", distMin, *dist); 
@@ -500,7 +754,7 @@ void find_knn2(
       
       // now check if there is a point in the split that can be close 
       if(medianDist < *dist) {
-        KNNLDEBUG find_knn2( r, c->left, k, queryPoint, indexes, dist, medianDist, weight, tieBreak );  
+        KNNLDEBUG find_knn_sparse( r, c->left, k, queryPoint_index, indexes, dist, medianDist, weight, tieBreak);  
       } 
       else {
       //  printf("%f > %f, FAIL!\n", distMin, *dist); 
@@ -563,6 +817,7 @@ void find_knn(
   distMin = (queryPoint[c->dim] - c->split);
   distMin *= distMin * weight[c->dim];
 
+  //printf("dist=%4.2f\tquery_point%4.2f\tsplit=%4.2f\n",distMin,queryPoint[c->dim],c->split);
 
   if( distMin < medianDist ) medianDist = distMin;
 
@@ -687,7 +942,7 @@ int main () {
     index        // pointer to obs indexes 
   ); 
 
-  printTree( myTree, myTree->root );
+  //printTree( myTree, myTree->root );
   
   /********************************************************************************/ 
   /* This is a test for k nearest neighbors applied at the leaf node              */ 
@@ -783,6 +1038,187 @@ int main () {
 #else 
 
   /********************************************************************************/ 
+  /* An R interface for Sparse KNN                                                */ 
+  /********************************************************************************/ 
+
+
+void R_knn_sparse( 
+  double * queryPoints,             // 1 - point to query for
+  int * queryPoints_sparse_i,       // 2 - row index in sparse format 
+  int * queryPoints_sparse_p,       // 3 - pointer to sparse observations
+  int * queryPoints_sparse_i_n,     // 4 - length of i and values in sparse format
+  int * queryPoints_sparse_p_n,     // 5 - length of p in sparse format
+  double * x,                       // 6 - data to reference for the query
+  int * x_sparse_i,                 // 7 - row index in sparse format 
+  int * x_sparse_p,                 // 8 - pointer to sparse observations
+  int * x_sparse_i_n,               // 9 - length of i and values in sparse format
+  int * x_sparse_p_n,               // 10 - length of p in sparse format
+  int * queryPoints_nrowPtr,                   // 11 - 
+  int * nrowPtr,                    // 12 - number of rows
+  int * ncolPtr,                    // 13 - number of columns
+  double * kDist,                   // 14 - distance vector
+  int * indexInt,                   // 15 - length of index
+  int * kPtr,                       // 16 - number of nearest neighbors
+  double * weight,                  // 17 -
+  int * leafSizePtr,                // 18 - leaf size
+  double * maxDist,                 // 19 - 
+  int * transposePtr                // 20 - transpose
+ ) {
+
+  size_t i;
+  size_t j;
+  size_t d;
+  double * dist;
+  double tieBreak = -1;
+  size_t * kIndex = NULL;
+
+  size_t k        = (size_t) * kPtr;
+  size_t ncol     = (size_t) * ncolPtr;
+  size_t nrow     = (size_t) * nrowPtr;
+  size_t queryPoints_nrow     = (size_t) * queryPoints_nrowPtr;
+  size_t leafSize = (size_t) * leafSizePtr;
+  
+  size_t transpose = (size_t) * transposePtr;
+
+
+  rootNodePtr myTree = NULL;
+
+  //printf("\ncreateTree\n");
+  myTree = createTree(ncol, leafSize, nrow, x);
+
+  // add on type
+  myTree->sparse_i = x_sparse_i;
+  myTree->sparse_p = x_sparse_p;
+  myTree->sparse_i_n = x_sparse_i_n;
+  myTree->sparse_p_n = x_sparse_p_n;
+  
+  myTree->query_data = queryPoints;
+  myTree->query_sparse_i = queryPoints_sparse_i;
+  myTree->query_sparse_p = queryPoints_sparse_p;
+  myTree->query_sparse_i_n = queryPoints_sparse_i_n;
+  myTree->query_sparse_p_n = queryPoints_sparse_p_n;
+
+  myTree->transpose = transpose;
+
+  // speed things up by checking if there is a need to evaluate any categorical data
+
+  // index for k-d tree
+  // this will get freed
+  size_t * index = calloc(nrow, sizeof(size_t));
+  for(i = 0; i < nrow; i++) index[i] = i;
+
+/*
+  printf("\nsparse processing\n");
+  printf(
+      "y:\nindex length = %d\npointer length = %d\nx:\nindex length = %d\npointer length = %d\n", 
+      *queryPoints_sparse_i_n,
+      *queryPoints_sparse_p_n,
+      *x_sparse_i_n,
+      *x_sparse_p_n
+      );
+  printf("\ny:\nindex\n");
+  for(i = 0; i < *queryPoints_sparse_i_n; i++) printf("%d ",  queryPoints_sparse_i[i]);
+  printf("\npointers\n");
+  for(i = 0; i < *queryPoints_sparse_p_n; i++) printf("%d ", queryPoints_sparse_p[i]);
+  printf("\n\n");
+  
+  printf("\nx:\nindex\n");
+  for(i = 0; i < *x_sparse_i_n; i++) printf("%d ",  x_sparse_i[i]);
+  printf("\nx:\nvalues\n");
+  for(i = 0; i < *x_sparse_i_n; i++) printf("%4.2f ",  x[i]);
+  printf("\npointers\n");
+  for(i = 0; i < *x_sparse_p_n; i++) printf("%d ", x_sparse_p[i]);
+  printf("\n\n");
+
+
+  printf("x: (%d x %d) \n\n", (int) nrow, (int) ncol);
+  // Example: 
+  //
+  // x:
+  // index
+  // 0 1 2 3 4 7 8 1 2 3 4 6 9 0 1 2 4 6 7 8
+  // x:
+  // values
+  // 0.12 -1.14 1.31 -0.32 -0.72 -0.60 -0.18 -0.03 0.22 0.44 -1.87 -0.08 -1.25 0.28 -0.03 -0.25 -0.49 -0.59 -0.20 -1.49
+  // pointers
+  // 0 7 13 20 
+  //
+  // i = 0
+  // j = 0
+  // d = x_sparse_p[0] = 0
+  for( i = 0; i < nrow; i ++ ) {
+
+    printf("%d: ",(int) i );
+    for( j = 0; j < ncol; j ++ ) {
+      printf("%4.2f, ",  
+          sparse_point( i,j, x_sparse_i, x_sparse_p, x ) 
+          ); 
+    }
+    printf("\n");
+  }
+ // print out query tree 
+  for( i = 0; i < queryPoints_nrow; i ++ ) {
+
+    printf("%d: ",(int) i );
+    for( j = 0; j < ncol; j ++ ) {
+      printf("%4.2f, ",  
+          sparse_point( i,j, queryPoints_sparse_i, queryPoints_sparse_p, myTree->query_data,transpose ) 
+          ); 
+    }
+    printf("\n");
+  }
+*/
+  // k index
+  // this will get freed
+  
+  // build the index
+  myTree->root = buildIndex_sparse( 
+    myTree,      // root pointer 
+    0,           // current dim
+    nrow,        // current length of obs
+    index        // pointer to obs indexes 
+  ); 
+
+  //printTree(myTree,myTree->root);
+
+  printf("queryPoints rows = %d\n", (int) queryPoints_nrow);
+  printf("x rows = %d\n", (int) nrow);
+
+  // sparse matrix
+  #pragma omp parallel private(i,j,kIndex,tieBreak,dist)
+  {
+
+    kIndex = calloc(k, sizeof(size_t));
+
+    #pragma omp for
+    for(i=0; i < queryPoints_nrow; i++) { 
+
+      //printf("i = %d\n", (int) i );
+      // iterate over the k neighbors
+      for(j = 0; j < k; j++) kIndex[j] = myTree->n;
+  
+      dist = kDist + i*k;  //index to return distance
+      // query tree
+      find_knn_sparse( myTree, myTree->root, k, i, kIndex, dist, *maxDist, weight, &tieBreak);
+
+
+      // copy data over 
+      for( j = 0; j < k; j++) indexInt[i*k +j] = 1 + (int) kIndex[j]; 
+    }
+
+    free(kIndex);
+  }
+
+
+  // clean up
+  deleteTree( myTree );
+
+  return;
+}
+
+
+
+  /********************************************************************************/ 
   /* An R interface for KNN                                                       */ 
   /********************************************************************************/ 
 
@@ -790,8 +1226,7 @@ int main () {
 void R_knn( 
   double * queryPoints,  // point to query for
   double * x,           // data to reference for the query
-  int * type, // new
-  int * xnrowPtr,
+  int * queryPoints_nrowPtr,
   int * nrowPtr,        // number of rows
   int * ncolPtr,        // number of columns
   double * kDist,       // distance vector
@@ -804,7 +1239,6 @@ void R_knn(
 
   size_t i;
   size_t j;
-  size_t typeEval=0;
   size_t d;
   double * dist;
   double * queryPoint; 
@@ -814,22 +1248,13 @@ void R_knn(
   size_t k        = (size_t) * kPtr;
   size_t ncol     = (size_t) * ncolPtr;
   size_t nrow     = (size_t) * nrowPtr;
-  size_t xnrow     = (size_t) * xnrowPtr;
+  size_t queryPoints_nrow     = (size_t) * queryPoints_nrowPtr;
   size_t leafSize = (size_t) * leafSizePtr;
 
 
   rootNodePtr myTree = NULL;
 
   myTree = createTree(ncol, leafSize, nrow, x);
-
-  // add on type
-  myTree->type = type;
-
-  // speed things up by checking if there is a need to evaluate any categorical data
-
-  for( d=0; d < ncol; d++) {
-    if( myTree->type[d] == 1 ) typeEval++;
-  }
 
   // index for k-d tree
   // this will get freed
@@ -847,8 +1272,8 @@ void R_knn(
     index        // pointer to obs indexes 
   ); 
 
+  //printTree(myTree, myTree->root);
 
-  if( typeEval == ncol ) {
 
   #pragma omp parallel private(i,j,kIndex,tieBreak,queryPoint,dist)
   {
@@ -856,9 +1281,9 @@ void R_knn(
     kIndex = calloc(k, sizeof(size_t));
 
     #pragma omp for
-    for(i=0; i < xnrow; i++) { 
+    for(i=0; i < queryPoints_nrow; i++) { 
 
-//      printf("i = %d\n", (int) i );
+      //printf("i = %d\n", (int) i );
       for(j = 0; j < k; j++) kIndex[j] = myTree->n;
   
       queryPoint = queryPoints + i*ncol; 
@@ -874,34 +1299,6 @@ void R_knn(
     free(kIndex);
   }
 
-  } else {
-
-  #pragma omp parallel private(i,j,kIndex,tieBreak,queryPoint,dist)
-  {
-
-    kIndex = calloc(k, sizeof(size_t));
-
-    #pragma omp for
-    for(i=0; i < xnrow; i++) { 
-
-//      printf("i = %d\n", (int) i );
-      for(j = 0; j < k; j++) kIndex[j] = myTree->n;
-  
-      queryPoint = queryPoints + i*ncol; 
-      dist = kDist + i*k; 
-      // query tree
-      find_knn2( myTree, myTree->root, k, queryPoint, kIndex, dist, *maxDist, weight, &tieBreak);
-
-
-      // copy data over 
-      for( j = 0; j < k; j++) indexInt[i*k +j] = 1 + (int) kIndex[j]; 
-    }
-
-    free(kIndex);
-  }
-
-
-  }
 
   // clean up
   deleteTree( myTree );
@@ -910,6 +1307,7 @@ void R_knn(
 }
 
 #endif
+
 
 
 

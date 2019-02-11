@@ -4,7 +4,7 @@
 \alias{knn_meanShift}
 \title{K-d tree based k nearest neighbor search}
 \usage{
-knn_meanShift(points, trainData, k = min(5, NROW(trainData)), weight, type,
+knn_meanShift(points, trainData, k = min(5, NROW(trainData)), weight,
   leafSize = 40, maxDist = Inf)
 }
 \arguments{
@@ -18,9 +18,6 @@ found for each vector.}
 \item{weight}{A scalar or vector of length equal to the number of columns of 
 \code{trainData}.   This value is used as the diagonal elements for the 
 inverse covariance matrix of the Mahalanobis distance.}
-
-\item{type}{allows the user to specify if the value provided is to be treated
-as categorical without requiring one-hot encoding.}
 
 \item{leafSize}{A scalar used to specify the number of points to store in the 
 leaf nodes.}

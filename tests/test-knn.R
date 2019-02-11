@@ -8,13 +8,20 @@ i <- 1698
 
 set.seed(i)
 
-n <- 2
-m <- 2000 
-p <- 3 
-k <- 3 
+n <- 200000 
+m <- 200000 
+p <- 200 
+k <- 5 
 
-x <- matrix(rnorm(p*n),ncol=p)
-y <- matrix(rnorm(p*m),ncol=p)
+x <- matrix(exp(rnorm(p*n)),ncol=p)
+y <- matrix(exp(rnorm(p*m)),ncol=p)
+
+
+# add some zeros
+x[sample( 1:length(x), size=n)] <- 0
+y[sample( 1:length(y), size=m)] <- 0
+
+
 
 labels <- rep(1,n)
 
@@ -34,3 +41,64 @@ print( (proc.time() - a)[3])
 
 
 print(max(abs( result_ms$neighbors - index_class[,k:1])))
+
+
+library(Matrix)
+x_sparse <- Matrix(x,sparse=TRUE)
+y_sparse <- Matrix(y,sparse=TRUE)
+
+#print( "y_sparse@i")
+#print( as.integer(y_sparse@i) )
+#print( "y_sparse@p")
+#print( as.integer(y_sparse@p) )
+#print( "y_sparse@i")
+#print( as.integer(x_sparse@i) )
+#print( "x_sparse@p")
+#print( as.integer(x_sparse@p) )
+
+#a <- proc.time()
+#print('dense check')
+#result_sparse_ms <- knn_meanShift(y_sparse,x_sparse,k=k,leafSize=4 )
+#print( (proc.time() - a)[3])
+
+
+tx_sparse <- t(x_sparse)
+ty_sparse <- t(y_sparse)
+
+
+a <- proc.time()
+print('dense check transpose')
+result_sparse_ms <- knn_meanShift(ty_sparse,tx_sparse,k=k,transpose=1 )
+print( (proc.time() - a)[3])
+
+
+
+
+
+print("distances")
+print(max(abs(result_sparse_ms$distances - result_ms$distances)))
+print("neighbors")
+print(max(abs(result_sparse_ms$neighbors - result_ms$neighbors)))
+
+
+#print(result_sparse_ms$distances - result_ms$distances)
+#
+#
+#check_dist <- function(i,j,y,x) {
+#  sum((y[i,] - x[j,])^2)
+#}
+#
+#print( check_dist(17,7,y,x)) 
+#print( check_dist(17,10,y,x)) 
+#print( check_dist(17,8,y,x)) 
+#
+#print( check_dist(17,1,y,x)) 
+#print( check_dist(17,7,y,x)) 
+#print( check_dist(17,6,y,x)) 
+#
+#
+#print( check_dist(1,4,y,x))
+#print( check_dist(1,8,y,x))
+#print( check_dist(1,2,y,x))
+
+

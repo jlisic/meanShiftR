@@ -14,7 +14,7 @@ type <- c(1,1,1,2)
 x <- matrix( c( rnorm(p*n) , sample(1:3,size=n,replace=TRUE)), nrow=n)
 
 a <- proc.time()
-result_ms <- knn_meanShift(x,x,k=k, type=type)
+result_ms <- knn_meanShift(x,x,k=k)
 print( (proc.time() - a)[3])
 
 
@@ -28,7 +28,7 @@ mixed_dist <- function( x, y, type ) {
 Dist <- matrix(0,n,n)
 for( i in 1:n ) {
   for( j in 1:n ) {
-    Dist[i,j] <- mixed_dist(x[i,], x[j,], type)
+    Dist[i,j] <- mixed_dist(x[i,], x[j,])
   }
 }
 
