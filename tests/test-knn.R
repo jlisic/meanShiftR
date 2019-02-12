@@ -8,18 +8,20 @@ i <- 1698
 
 set.seed(i)
 
-n <- 200000 
-m <- 200000 
-p <- 200 
+n <- 10000 
+m <- 20000
+p <- 100 
 k <- 5 
 
 x <- matrix(exp(rnorm(p*n)),ncol=p)
 y <- matrix(exp(rnorm(p*m)),ncol=p)
 
 
+zero_rate <- 0.9 
+
 # add some zeros
-x[sample( 1:length(x), size=n)] <- 0
-y[sample( 1:length(y), size=m)] <- 0
+x[sample( 1:length(x), size=round(p*n * zero_rate))] <- 0
+y[sample( 1:length(y), size=round(p*m * zero_rate))] <- 0
 
 
 
@@ -64,6 +66,8 @@ y_sparse <- Matrix(y,sparse=TRUE)
 
 tx_sparse <- t(x_sparse)
 ty_sparse <- t(y_sparse)
+#print(x_sparse)
+#print(y_sparse)
 
 
 a <- proc.time()

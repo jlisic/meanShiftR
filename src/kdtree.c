@@ -128,6 +128,8 @@ double sparse_point(
 }
 
 // get the value (double) of a row and column in a sparse matrix 
+//
+/*
 double sparse_l2(
     size_t i,       //row
     int * i_index,    // sparse matrix index
@@ -199,6 +201,129 @@ double sparse_l2(
 
   return dist;
 }
+*/
+
+
+// get the value (double) of a row and column in a sparse matrix 
+//
+double sparse_l2(
+    size_t i,       //row
+    int * i_index,    // sparse matrix index
+    int * i_pointer,  // sparse matrix pointer
+    double * i_x,     // sparse matrix value
+    size_t j,      //col
+    int * j_index,    // sparse matrix index
+    int * j_pointer,  // sparse matrix pointer
+    double * j_x,     // sparse matrix value
+    double * weight,  // weight
+    size_t p,     // NCOL
+    double * i_vector,
+    double * j_vector,
+    double * w_vector 
+    ) { 
+
+  size_t l=0,d=0;
+
+  size_t i_col = (int) i_pointer[i];  
+  size_t i_col_max = (int) i_pointer[i+1];  
+  
+  size_t j_col = (int) j_pointer[j];  
+  size_t j_col_max = (int) j_pointer[j+1];  
+
+  double dist = 0;
+  double tmp;
+
+  size_t d_i, d_j;
+
+  // here we first get the next viable value
+  if( j_col < j_col_max) {
+    d_j = j_index[j_col];
+  } else {
+    d_j = p;
+  }  
+    
+    // here we first get the next viable value
+  if( i_col < i_col_max) {
+    d_i = i_index[i_col];
+  } else {
+    d_i = p;
+  }  
+
+  // here we get the smallest viable value (if there are any)
+  if( d_i < d_j ) {
+    d = d_i;
+  } else {
+    d = d_j;
+  }
+
+
+  //printf("------- %d, %d--------------\n", (int) i, (int) j );
+  while( d < p ) {
+
+    // first assign vector values
+    i_vector[l] = 0;
+    j_vector[l] = 0;
+    w_vector[l] = weight[d];
+
+
+    // update vector and increment
+    if( i_col < i_col_max) {
+      if( i_index[i_col] == d ) {
+//    printf(" match i == %d\n", (int) d);
+        i_vector[l] = i_x[i_col];
+        i_col++;
+      } 
+    } 
+    
+    // update vector and increment
+    if( j_col < j_col_max) {
+      if( j_index[j_col] == d ) {
+//     printf(" match j == %d\n", (int) d);
+        j_vector[l] = j_x[j_col];
+        j_col++;
+      } 
+    } 
+    
+//printf("%d: d = %d, i_index = %d, j_index = %d x_i[d] = %4.2f\t x_j[d] = %4.2f\n", (int) l, (int) d, i_index[i_col], j_index[j_col], i_vector[l], j_vector[l] );
+
+
+    // here we first get the next viable value
+    if( j_col < j_col_max) {
+      d_j = j_index[j_col];
+    } else {
+      d_j = p;
+    }  
+    
+    // here we first get the next viable value
+    if( i_col < i_col_max) {
+      d_i = i_index[i_col];
+    } else {
+      d_i = p;
+    }  
+
+    if( d_i < d_j ) {
+      d = d_i;
+    } else {
+      d = d_j;
+    }
+
+    l++;
+  }
+
+  // setup for future simd
+  for(d=0; d < l; d++) {
+
+//printf( "%d: %4.2f %4.2f\n", (int) d, i_vector[d], j_vector[d]) ; 
+    tmp = i_vector[d] - j_vector[d]; 
+    tmp *= tmp * w_vector[d];
+    
+    dist += tmp; 
+  } 
+
+  return dist;
+}
+
+
 
 // add an element to the tree 
 nodePtr buildIndex( 

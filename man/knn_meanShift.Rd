@@ -4,13 +4,10 @@
 \alias{knn_meanShift}
 \title{K-d tree based k nearest neighbor search}
 \usage{
-knn_meanShift(points, trainData, k = min(5, NROW(trainData)), weight,
-  leafSize = 40, maxDist = Inf)
+knn_meanShift(evalData, trainData, k = min(5, NROW(trainData)), weight,
+  leafSize = 40, maxDist = Inf, transpose = FALSE)
 }
 \arguments{
-\item{points}{n vectors stored in an n by p matrix.  k nearest neighbors are
-found for each vector.}
-
 \item{trainData}{A matrix or vector of potential nearest neighbors.}
 
 \item{k}{A scalar indicating the number neighbors to find.}
@@ -24,6 +21,12 @@ leaf nodes.}
 
 \item{maxDist}{A vector specifying the maximum value of the Mahalanobis that
 will be considered.}
+
+\item{transpose}{A boolean determining if you should query by columns instead of
+the default of rows (only for sparse matricies).}
+
+\item{points}{n vectors stored in an n by p matrix.  k nearest neighbors are
+found for each vector.}
 }
 \value{
 A list is returned containing two items: \code{neighbors}, an n by k
