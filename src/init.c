@@ -12,6 +12,8 @@
 #include <R_ext/Rdynload.h>
 #include "kdtree.h"
 #include "meanShift.h"
+#include "dfToSparse.h"
+
 #if defined _OPENMP
   #include <omp.h>
 #endif
@@ -61,10 +63,23 @@ static R_NativePrimitiveArgType R_knn_t[] = {
   REALSXP  // 11 maxDist
 };
 
+static R_NativePrimitiveArgType R_dfToSparse_t[] = {
+ INTSXP,     // 1 Not used yet
+ INTSXP,          // 2 number of rows
+ INTSXP,          // 3 number of columns
+ INTSXP,      // 4 column indexes
+ INTSXP,      // 5 poers for sparse matrix
+ INTSXP,    // 6 number of categories per column
+ INTSXP, // 7 cumulative sume of the number of categories per column
+ INTSXP              // 8 Not used yet
+};
+
+
 static const R_CMethodDef cMethods[] = {
      {"R_meanShift", (DL_FUNC) &R_meanShift, 14, R_meanShift_t},
      {"R_knn", (DL_FUNC) &R_knn, 11, R_knn_t},
      {"R_knn_sparse", (DL_FUNC) &R_knn_sparse, 20, R_knn_sparse_t},
+     {"R_dfToSparse", (DL_FUNC) &R_knn_sparse, 8, R_dfToSparse_t},
      {NULL, NULL, 0, NULL}
 };
 

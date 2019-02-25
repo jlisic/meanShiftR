@@ -4,9 +4,10 @@
 \alias{meanShift}
 \title{Mean shift classification}
 \usage{
-meanShift(queryData, trainData = queryData, nNeighbors = NROW(trainData),
-  algorithm = "LINEAR", kernelType = "NORMAL", bandwidth = rep(1,
-  NCOL(trainData)), alpha = 0, iterations = 10, epsilon = 1e-08,
+meanShift(queryData, trainData = queryData,
+  nNeighbors = NROW(trainData), algorithm = "LINEAR",
+  kernelType = "NORMAL", bandwidth = rep(1, NCOL(trainData)),
+  alpha = 0, iterations = 10, epsilon = 1e-08,
   epsilonCluster = 1e-04, parameters = NULL)
 }
 \arguments{
