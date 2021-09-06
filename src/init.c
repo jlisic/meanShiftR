@@ -6,6 +6,10 @@
 #include <stdio.h> 
 #include <stdlib.h>
 
+#if defined _OPENMP
+  #include <omp.h>
+#endif
+
 #include "R.h"
 #include "Rinternals.h"
 #include "Rmath.h"
@@ -14,9 +18,6 @@
 #include "meanShift.h"
 #include "dfToSparse.h"
 
-#if defined _OPENMP
-  #include <omp.h>
-#endif
 
 /***********************************/
 /* Register SO's                   */

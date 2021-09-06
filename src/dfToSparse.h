@@ -10,13 +10,14 @@
 #include <stdlib.h>
 //#include <time.h>
 
+#if defined _OPENMP
+  #include <omp.h>
+#endif
+
 #include "R.h"
 #include "Rinternals.h"
 #include "Rmath.h"
 
-#if defined _OPENMP
-  #include <omp.h>
-#endif
 
 
 

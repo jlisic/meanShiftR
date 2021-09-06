@@ -7,15 +7,16 @@
 #include <stdlib.h>
 //#include <time.h>
 
+#if defined _OPENMP
+  #include <omp.h>
+#endif
+
+
 #include "R.h"
 #include "Rinternals.h"
 #include "Rmath.h"
 #include "kdtree.h"
 #include "meanShift.h"
-
-#if defined _OPENMP
-  #include <omp.h>
-#endif
 
 
 
